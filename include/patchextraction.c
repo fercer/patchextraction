@@ -248,24 +248,37 @@ unsigned int generatePatchesSample_impl(unsigned int ** sample_indices, double *
 			negative_patches_count++;
 		}
 	}
+	DEBNUMMSG("Positive patches count: %i\n", positive_patches_count);
+	DEBNUMMSG("Negative patches count: %i\n", negative_patches_count);
 	
-	sample_size = (unsigned int)floor(sample_percentage*((positive_patches_count < negative_patches_count) ? (double)positive_patches_count : (double)negative_patches_count));
+	// Balance the probability of take a patch of each class and insert it into the sample:
+	double negative_patch_sampling_percentage = ((negative_patches_count <= positive_patches_count) ? 1.0 : (double)positive_patches_count/(double)negative_patches_count)*sample_percentage;
+	double positive_patch_sampling_percentage = ((positive_patches_count <= negative_patches_count) ? 1.0 : (double)negative_patches_count/(double)positive_patches_count)*sample_percentage;
+	if (sample_percentage > 1.0)
+	{
+		sample_size = (unsigned int)floor(sample_percentage);
+		negative_patch_sampling_percentage/=(double)n_patches_in_height*n_patches_in_width;
+		positive_patch_sampling_percentage/=(double)n_patches_in_height*n_patches_in_width;
+	}
+	else
+	{
+		sample_size = (unsigned int)floor(sample_percentage*((positive_patches_count < negative_patches_count) ? (double)positive_patches_count : (double)negative_patches_count));
+	}
+	DEBNUMMSG("Sample size: %i\n", sample_size);
 	*sample_indices = (unsigned int*)malloc(sample_size*sizeof(unsigned int));
-		
+	
 	STAUS * rng_seed = initSeed(0);
 	
-	unsigned int remaining_sample_indices = sample_size;
-	unsigned int remaining_positive_patches = positive_patches_count;
-	unsigned int remaining_negative_patches = negative_patches_count;
-		
-	// Balance the probability of take a patch of each class and insert it into the sample:
-	const double negative_patch_sampling_percentage = ((negative_patches_count <= positive_patches_count) ? 1.0 : (double)positive_patches_count/(double)negative_patches_count) * sample_percentage;
-	const double positive_patch_sampling_percentage = ((positive_patches_count <= negative_patches_count) ? 1.0 : (double)negative_patches_count/(double)positive_patches_count) * sample_percentage;
+	int remaining_sample_indices = sample_size;
 	
+	
+	DEBNUMMSG("Negative patch sampling percentage: %f\n", negative_patch_sampling_percentage);
+	DEBNUMMSG("Positive patch sampling percentage: %f\n", positive_patch_sampling_percentage);
+		
 	double current_patch_class_sampling_percentage;
 	unsigned int * sample_indices_ptr = *sample_indices;
 	patch_xy = 0;
-	while ((remaining_sample_indices >= 1) && ((remaining_sample_indices > positive_patches_count) || (remaining_sample_indices > negative_patches_count)))
+	while ((remaining_sample_indices >= 1) && ((remaining_sample_indices < positive_patches_count) || (remaining_sample_indices < negative_patches_count)))
 	{
 		if (*(class_labels + patch_xy*n_channels) > 0.0)
 		{
@@ -280,19 +293,24 @@ unsigned int generatePatchesSample_impl(unsigned int ** sample_indices, double *
 		
 		if (HybTaus(0.0, 1.0, rng_seed) <= current_patch_class_sampling_percentage)
 		{
+			remaining_sample_indices--;
 			*(sample_indices_ptr++) = patch_xy;
 		}
 		
 		patch_xy++;
 	}
+	DEBNUMMSG("Remaining samples to fill: %i ", remaining_sample_indices );
+	DEBNUMMSG("%i\n", patch_xy );
 	
 	// Assign the remaining patches to complete the sample
-	while (remaining_sample_indices >= 1)
+	while (remaining_sample_indices-- >= 1)
 	{
 		*(sample_indices_ptr++) = patch_xy;
 		patch_xy++;
 	}
 	
+	DEBNUMMSG("Remaining samples to fill: %i ", remaining_sample_indices );
+	DEBNUMMSG("%i\n", patch_xy );
 	free(rng_seed);
 	
 	return sample_size;

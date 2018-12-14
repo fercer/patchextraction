@@ -51,13 +51,20 @@ None
         #endif
     #endif
 #endif
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
 
 #include "random_numbers_generator.h"
+
+#ifndef NDEBUG
+#define DEBMSG(MESSAGE) printf(MESSAGE)
+#define DEBNUMMSG(MESSAGE, NUM) printf(MESSAGE, NUM);
+#else
+#define DEBMSG(MESSAGE) 
+#define DEBNUMMSG(MESSAGE, NUM) 
+#endif
 
 void PATCHEXTRACTION_DLL_LOCAL extractPatchClass_same(double * input, double * class_labels, const unsigned int patch_x, const unsigned int patch_y, const unsigned int height, const unsigned int width, const unsigned int n_channels, const unsigned int patch_size, const unsigned int patch_stride);
 void PATCHEXTRACTION_DLL_LOCAL extractPatchClass_center(double * input, double * class_labels, const unsigned int patch_x, const unsigned int patch_y, const unsigned int height, const unsigned int width, const unsigned int n_channels, const unsigned int patch_size, const unsigned int patch_stride);
@@ -76,7 +83,7 @@ void PATCHEXTRACTION_DLL_PUBLIC extractSampledPatchesAndClasses_impl(double * in
 void PATCHEXTRACTION_DLL_PUBLIC extractSampledPatches_impl(double * input, double ** output, const unsigned int height, const unsigned int width, const unsigned int n_channels, const unsigned int patch_size, const unsigned int patch_stride, unsigned int * sample_indices, const unsigned int sample_size);
 void PATCHEXTRACTION_DLL_PUBLIC extractAllPatchesAndClasses_impl(double * input, double ** output, double ** class_labels, const unsigned int height, const unsigned int width, const unsigned int n_channels, const unsigned int patch_size, const unsigned int patch_stride, const unsigned char patch_extraction_mode);
 void PATCHEXTRACTION_DLL_PUBLIC extractAllPatches_impl(double * input, double ** output, const unsigned int height, const unsigned int width, const unsigned int n_channels, const unsigned int patch_size, const unsigned int patch_stride);
-/*
+
 #ifdef BUILDING_PYTHON_MODULE
 static PyObject* computeClasses(PyObject *self, PyObject *args);
 
@@ -96,5 +103,5 @@ static PyObject* extractAllPatches(PyObject *self, PyObject *args, PyObject *kw)
 
 static PyObject* samplePatches(PyObject *self, PyObject *args, PyObject *kw);
 #endif
-*/
+
 #endif //PATCHEXTRACTION_DLL_H_INCLUDED
