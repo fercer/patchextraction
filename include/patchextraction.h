@@ -98,8 +98,8 @@ static PyObject* extractSampledPatches(PyObject *self, PyObject *args, PyObject 
 static PyObject* extractAllPatchesAndClasses_pyinterface(PyArrayObject *input, const unsigned int patch_size, const unsigned int patch_stride, const unsigned char patch_extraction_mode);
 static PyObject* extractAllPatchesAndClasses(PyObject *self, PyObject *args, PyObject *kw);
 
-static PyObject* extractAllPatches_pyinterface(PyArrayObject *input, const unsigned int patch_size, const unsigned int patch_stride, const unsigned char patch_extraction_mode);
-static PyObject* extractAllPatches(PyObject *self, PyObject *args, PyObject *kw);
+static PyObject* extractAllPatches_pyinterface(PyArrayObject *input, const unsigned int patch_size, const unsigned int patch_stride);
+static PyObject* extractAllPatches(PyObject *self, PyObject *args);
 
 static PyObject* samplePatches(PyObject *self, PyObject *args, PyObject *kw);
 #endif

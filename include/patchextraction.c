@@ -518,9 +518,6 @@ static PyObject* computeClasses(PyObject *self, PyObject *args)
 		return NULL;
 	}
 
-	const unsigned int n_patches_in_width = (unsigned int)floor((double)(width - patch_size + patch_stride) / (double)patch_stride);
-	const unsigned int n_patches_in_height = (unsigned int)floor((double)(height - patch_size + patch_stride) / (double)patch_stride);
-			
 	if (input->nd > 2)
 	{
 		n_channels = (unsigned int)input->dimensions[0];
@@ -534,20 +531,23 @@ static PyObject* computeClasses(PyObject *self, PyObject *args)
 		width = (unsigned int)input->dimensions[1];
 	}
 	
+	const unsigned int n_patches_in_width = (unsigned int)floor((double)(width - patch_size + patch_stride) / (double)patch_stride);
+	const unsigned int n_patches_in_height = (unsigned int)floor((double)(height - patch_size + patch_stride) / (double)patch_stride);
+			
 	const unsigned int class_labels_height = (patch_extraction_mode == 0) ? patch_size : 1;
 	const unsigned int class_labels_width = (patch_extraction_mode == 0) ? patch_size : 1;
 	const unsigned int class_labels_offset = (patch_extraction_mode == 0) ? class_labels_height*class_labels_width*n_channels : n_channels;
 		
 	double * class_labels = (double*)malloc(n_patches_in_height*n_patches_in_width*class_labels_offset*sizeof(double));
-	computeClasses_impl((double*)input->data, class_labels, height, width, n_channels, patch_size, patch_stride, patch_extraction_mode);
+	computeClasses_impl((double*)input->data, &class_labels, height, width, n_channels, patch_size, patch_stride, patch_extraction_mode);
 	
 	npy_intp labels_shape[] = { n_patches_in_height*n_patches_in_width, n_channels, class_labels_height, class_labels_width };
-	PyArrayObject * labels = PyArray_SimpleNew(4, &labels_shape[0], NPY_DOUBLE);
+	PyArrayObject* labels = (PyArrayObject*)PyArray_SimpleNew(4, &labels_shape[0], NPY_DOUBLE);
 	
 	memcpy((double*)labels->data, class_labels, n_patches_in_height*n_patches_in_width*class_labels_offset*sizeof(double));
 	
 	free(class_labels);
-	return labels;
+	return (PyObject*)labels;
 }
 
 
@@ -561,15 +561,13 @@ static PyObject* generatePatchesSample(PyObject *self, PyObject *args, PyObject 
     unsigned char patch_extraction_mode = 1;
     double sample_percentage = 1.0;
     
-    char keywords[6][64] = {"", "", "", "patch_extraction_mode", "sample_percentage", "labels"};
+    static char *keywords[] = {"input", "patch_size", "patch_stride", "patch_extraction_mode", "sample_percentage", "labels", NULL};
     
     if (!PyArg_ParseTupleAndKeywords(args, kw, "O!II|$bdO!", keywords, &PyArray_Type, &input, &patch_size, &patch_stride, &patch_extraction_mode, &sample_percentage, &PyArray_Type, &labels))
     {
 		return NULL;
 	}
 
-	const unsigned int n_patches_in_width = (unsigned int)floor((double)(width - patch_size + patch_stride) / (double)patch_stride);
-	const unsigned int n_patches_in_height = (unsigned int)floor((double)(height - patch_size + patch_stride) / (double)patch_stride);
 			
 	if (input->nd > 2)
 	{
@@ -584,6 +582,9 @@ static PyObject* generatePatchesSample(PyObject *self, PyObject *args, PyObject 
 		width = (unsigned int)input->dimensions[1];
 	}
 	
+	const unsigned int n_patches_in_width = (unsigned int)floor((double)(width - patch_size + patch_stride) / (double)patch_stride);
+	const unsigned int n_patches_in_height = (unsigned int)floor((double)(height - patch_size + patch_stride) / (double)patch_stride);
+	
 	const unsigned int class_labels_offset = (patch_extraction_mode == 0) ? patch_size*patch_size*n_channels : n_channels;
 	
 	double * class_labels = NULL;
@@ -594,14 +595,14 @@ static PyObject* generatePatchesSample(PyObject *self, PyObject *args, PyObject 
 	else
 	{
 		class_labels = (double*)malloc(n_patches_in_height*n_patches_in_width*class_labels_offset*sizeof(double));
-		computeClasses_impl((double*)input->data, class_labels, height, width, n_channels, patch_size, patch_stride, patch_extraction_mode);
+		computeClasses_impl((double*)(input->data), &class_labels, height, width, n_channels, patch_size, patch_stride, patch_extraction_mode);
 	}
 	
 	unsigned int * sample_indices = NULL;
 	const unsigned int sample_size = generatePatchesSample_impl(&sample_indices, class_labels, height, width, n_channels, patch_size, patch_stride, sample_percentage);
 	
 	npy_intp patches_sample_shape[] = { sample_size };
-	PyArrayObject * patches_sample = PyArray_SimpleNew(1, &patches_sample_shape[0], NPY_UINT32);	
+	PyArrayObject * patches_sample = (PyArrayObject*)PyArray_SimpleNew(1, &patches_sample_shape[0], NPY_UINT32);	
 	memcpy((unsigned int*)patches_sample->data, sample_indices, sample_size*sizeof(unsigned int));
 	
 	free(sample_indices);
@@ -611,12 +612,13 @@ static PyObject* generatePatchesSample(PyObject *self, PyObject *args, PyObject 
 		free(class_labels);
 	}
 	
-	return patches_sample;
+	return (PyObject*)patches_sample;
 }
 
 
 static PyObject* extractSampledPatchesAndClasses_pyinterface(PyArrayObject *input, PyArrayObject *labels, PyArrayObject *patches_sample, const unsigned int patch_size, const unsigned int patch_stride, const unsigned char patch_extraction_mode, const double sample_percentage)
 {	
+	unsigned int height, width, n_channels;	
 	if (input->nd > 2)
 	{
 		n_channels = (unsigned int)input->dimensions[0];
@@ -637,8 +639,8 @@ static PyObject* extractSampledPatchesAndClasses_pyinterface(PyArrayObject *inpu
 	const unsigned int class_labels_width = (patch_extraction_mode == 0) ? patch_size : 1;
 	const unsigned int class_labels_offset = (patch_extraction_mode == 0) ? class_labels_height*class_labels_width*n_channels : n_channels;
 
-	PyObject *patches = NULL;
-    PyObject *patches_classes = NULL;
+	PyArrayObject *patches = NULL;
+    PyArrayObject *patches_classes = NULL;
     PyObject *sample_patches_tuple = NULL;
     
     if (!patches_sample)
@@ -650,27 +652,27 @@ static PyObject* extractSampledPatchesAndClasses_pyinterface(PyArrayObject *inpu
 			computeClasses_impl((double*)input->data, &labels_data, height, width, n_channels, patch_size, patch_stride, patch_extraction_mode);
 			
 			unsigned int * sample_indices = NULL;
-			const unsigned int sample_indices = generatePatchesSample_impl(&sample_indices, labels_data, height, width, n_channels, patch_size, patch_stride, sample_percentage);
+			const unsigned int sample_size = generatePatchesSample_impl(&sample_indices, labels_data, height, width, n_channels, patch_size, patch_stride, sample_percentage);
 			
-			npy_intp patches_sample_shape[] = {sample_indices};
-			patches_sample = PyArray_SimpleNew(1, &patches_sample_shape[0], NPY_UINT32);
-			memcpy((unsigned int*)patches_sample->data, sample_indices, sample_indices*sizeof(unsigned int));
+			npy_intp patches_sample_shape[] = {sample_size};
+			patches_sample = (PyArrayObject*)PyArray_SimpleNew(1, &patches_sample_shape[0], NPY_UINT32);
+			memcpy((unsigned int*)patches_sample->data, sample_indices, sample_size*sizeof(unsigned int));
 			
-			npy_intp patches_shape[] = { *sample_indices, n_channels, patch_size, patch_size };
-			patches = PyArray_SimpleNew(4, &patches_shape[0], NPY_DOUBLE);
+			npy_intp patches_shape[] = { sample_size, n_channels, patch_size, patch_size };
+			patches = (PyArrayObject*)PyArray_SimpleNew(4, &patches_shape[0], NPY_DOUBLE);
 						
-			npy_intp patches_classes_shape[] = { *sample_indices, n_channels, class_labels_height, class_labels_width };
-			patches_classes = PyArray_SimpleNew(4, &patches_classes_shape[0], NPY_DOUBLE);
+			npy_intp patches_classes_shape[] = { sample_size, n_channels, class_labels_height, class_labels_width };
+			patches_classes = (PyArrayObject*)PyArray_SimpleNew(4, &patches_classes_shape[0], NPY_DOUBLE);
 			
-			extractSampledPatchesAndClasses_impl((double*)input->data, (double**)&patches->data, (double**)&patches_classes->data, height, width, n_channels, patch_size, patch_stride, patch_extraction_mode, sample_indices + 1, *sample_indices);
+			extractSampledPatchesAndClasses_impl((double*)(input->data), (double**)&(patches->data), (double**)&patches_classes->data, height, width, n_channels, patch_size, patch_stride, patch_extraction_mode, sample_indices + 1, *sample_indices);
 			
 			free(sample_indices);
 			free(labels_data);
 			
 			sample_patches_tuple = PyTuple_New(3);
-			PyTuple_SetItem(sample_patches_tuple, 0, patches);
-			PyTuple_SetItem(sample_patches_tuple, 1, patches_classes);
-			PyTuple_SetItem(sample_patches_tuple, 2, patches_sample);
+			PyTuple_SetItem(sample_patches_tuple, 0, (PyObject*)patches);
+			PyTuple_SetItem(sample_patches_tuple, 1, (PyObject*)patches_classes);
+			PyTuple_SetItem(sample_patches_tuple, 2, (PyObject*)patches_sample);
 		}
 		else
 		{
@@ -679,38 +681,38 @@ static PyObject* extractSampledPatchesAndClasses_pyinterface(PyArrayObject *inpu
 			const unsigned int sample_size = generatePatchesSample_impl(&sample_indices, (double*)labels->data, height, width, n_channels, patch_size, patch_stride, sample_percentage);
 			
 			npy_intp patches_sample_shape[] = {sample_size};
-			patches_sample = PyArray_SimpleNew(1, &patches_sample_shape[0], NPY_UINT32);
+			patches_sample = (PyArrayObject*)PyArray_SimpleNew(1, &patches_sample_shape[0], NPY_UINT32);
 			memcpy((unsigned int*)patches_sample->data, sample_indices, sample_size*sizeof(unsigned int));
 			
-			npy_intp patches_shape[] = { *sample_indices, n_channels, patch_size, patch_size };
-			patches = PyArray_SimpleNew(4, &patches_shape[0], NPY_DOUBLE);
+			npy_intp patches_shape[] = { sample_size, n_channels, patch_size, patch_size };
+			patches = (PyArrayObject*)PyArray_SimpleNew(4, &patches_shape[0], NPY_DOUBLE);
 			
-			npy_intp patches_classes_shape[] = { *sample_indices, n_channels, class_labels_height, class_labels_width };
-			patches_classes = PyArray_SimpleNew(4, &patches_classes_shape[0], NPY_DOUBLE);
+			npy_intp patches_classes_shape[] = { sample_size, n_channels, class_labels_height, class_labels_width };
+			patches_classes = (PyArrayObject*)PyArray_SimpleNew(4, &patches_classes_shape[0], NPY_DOUBLE);
 			
 			extractSampledPatchesAndClasses_impl((double*)input->data, (double**)&patches->data, (double**)&patches_classes->data, height, width, n_channels, patch_size, patch_stride, patch_extraction_mode, sample_indices + 1, *sample_indices);
 			
 			free(sample_indices);
 			
 			sample_patches_tuple = PyTuple_New(3);
-			PyTuple_SetItem(sample_patches_tuple, 0, patches);
-			PyTuple_SetItem(sample_patches_tuple, 1, patches_classes);
-			PyTuple_SetItem(sample_patches_tuple, 2, patches_sample);
+			PyTuple_SetItem(sample_patches_tuple, 0, (PyObject*)patches);
+			PyTuple_SetItem(sample_patches_tuple, 1, (PyObject*)patches_classes);
+			PyTuple_SetItem(sample_patches_tuple, 2, (PyObject*)patches_sample);
 		}
 	}
 	else
 	{
 		npy_intp patches_shape[] = { patches_sample->dimensions[0], n_channels, patch_size, patch_size };
-		patches = PyArray_SimpleNew(4, &patches_shape[0], NPY_DOUBLE);
+		patches = (PyArrayObject*)PyArray_SimpleNew(4, &patches_shape[0], NPY_DOUBLE);
 		
 		npy_intp patches_classes_shape[] = { patches_sample->dimensions[0], n_channels, class_labels_height, class_labels_width };
-		patches_classes = PyArray_SimpleNew(4, &patches_classes_shape[0], NPY_DOUBLE);
+		patches_classes = (PyArrayObject*)PyArray_SimpleNew(4, &patches_classes_shape[0], NPY_DOUBLE);
 		
 		extractSampledPatchesAndClasses_impl((double*)input->data, (double**)&patches->data, (double**)&patches_classes->data, height, width, n_channels, patch_size, patch_stride, patch_extraction_mode, (unsigned int *)patches_sample->data, (unsigned int)patches_sample->dimensions[0]);
 				
 		sample_patches_tuple = PyTuple_New(2);
-		PyTuple_SetItem(sample_patches_tuple, 0, patches);
-		PyTuple_SetItem(sample_patches_tuple, 1, patches_classes);
+		PyTuple_SetItem(sample_patches_tuple, 0, (PyObject*)patches);
+		PyTuple_SetItem(sample_patches_tuple, 1, (PyObject*)patches_classes);
 	}
 
 	return sample_patches_tuple;
@@ -728,7 +730,7 @@ static PyObject* extractSampledPatchesAndClasses(PyObject *self, PyObject *args,
     unsigned char patch_extraction_mode = 1;
     double sample_percentage = 1.0;
     
-    char keywords[7][64] = {"", "", "", "patch_extraction_mode", "sample_percentage", "patches_samples", "labels"};
+    static char *keywords[] = {"input", "patch_size", "patch_stride", "patch_extraction_mode", "sample_percentage", "patches_samples", "labels", NULL};
     
     if (!PyArg_ParseTupleAndKeywords(args, kw, "O!II|$bdO!O!", keywords, &PyArray_Type, &input, &patch_size, &patch_stride, &patch_extraction_mode, &sample_percentage, &PyArray_Type, &patches_sample, &PyArray_Type, &labels))
     {
@@ -740,7 +742,8 @@ static PyObject* extractSampledPatchesAndClasses(PyObject *self, PyObject *args,
 
 
 static PyObject* extractSampledPatches_pyinterface(PyArrayObject *input, PyArrayObject *labels, PyArrayObject *patches_sample, const unsigned int patch_size, const unsigned int patch_stride, const unsigned char patch_extraction_mode, const double sample_percentage)
-{
+{	
+	unsigned int height, width, n_channels;
 	if (input->nd > 2)
 	{
 		n_channels = (unsigned int)input->dimensions[0];
@@ -757,7 +760,7 @@ static PyObject* extractSampledPatches_pyinterface(PyArrayObject *input, PyArray
 	const unsigned int n_patches_in_width = (unsigned int)floor((double)(width - patch_size + patch_stride) / (double)patch_stride);
 	const unsigned int n_patches_in_height = (unsigned int)floor((double)(height - patch_size + patch_stride) / (double)patch_stride);
 	
-	PyObject *patches = NULL;
+	PyArrayObject *patches = NULL;
     PyObject *sample_patches_tuple = NULL;
     
     if (!patches_sample)
@@ -772,20 +775,20 @@ static PyObject* extractSampledPatches_pyinterface(PyArrayObject *input, PyArray
 			const unsigned int sample_size = generatePatchesSample_impl(&sample_indices, labels_data, height, width, n_channels, patch_size, patch_stride, sample_percentage);
 			
 			npy_intp patches_sample_shape[] = {sample_size};
-			patches_sample = PyArray_SimpleNew(1, &patches_sample_shape[0], NPY_UINT32);
+			patches_sample = (PyArrayObject*)PyArray_SimpleNew(1, &patches_sample_shape[0], NPY_UINT32);
 			memcpy((unsigned int*)patches_sample->data, sample_indices, sample_size*sizeof(unsigned int));
 			
-			npy_intp patches_shape[] = { *sample_indices, n_channels, patch_size, patch_size };
-			patches = PyArray_SimpleNew(4, &patches_shape[0], NPY_DOUBLE);
+			npy_intp patches_shape[] = { sample_size, n_channels, patch_size, patch_size };
+			patches = (PyArrayObject*)PyArray_SimpleNew(4, &patches_shape[0], NPY_DOUBLE);
 			
-			extractSampledPatches_impl((double*)input->data, (double**)&patches->data, height, width, n_channels, patch_size, patch_stride, patch_extraction_mode, sample_indices + 1, *sample_indices);
+			extractSampledPatches_impl((double*)input->data, (double**)&(patches->data), height, width, n_channels, patch_size, patch_stride, sample_indices, sample_size);
 			
 			free(sample_indices);
 			free(labels_data);
 			
 			sample_patches_tuple = PyTuple_New(2);
-			PyTuple_SetItem(sample_patches_tuple, 0, patches);
-			PyTuple_SetItem(sample_patches_tuple, 1, patches_sample);
+			PyTuple_SetItem(sample_patches_tuple, 0, (PyObject*)patches);
+			PyTuple_SetItem(sample_patches_tuple, 1, (PyObject*)patches_sample);
 		}
 		else
 		{
@@ -794,36 +797,40 @@ static PyObject* extractSampledPatches_pyinterface(PyArrayObject *input, PyArray
 			const unsigned int sample_size = generatePatchesSample_impl(&sample_indices, (double*)labels->data, height, width, n_channels, patch_size, patch_stride, sample_percentage);
 			
 			npy_intp patches_sample_shape[] = {sample_size};
-			patches_sample = PyArray_SimpleNew(1, &patches_sample_shape[0], NPY_UINT32);
+			patches_sample = (PyArrayObject*)PyArray_SimpleNew(1, &patches_sample_shape[0], NPY_UINT32);
 			memcpy((unsigned int*)patches_sample->data, sample_indices, sample_size*sizeof(unsigned int));
 			
-			npy_intp patches_shape[] = { *sample_indices, n_channels, patch_size, patch_size };
-			patches = PyArray_SimpleNew(4, &patches_shape[0], NPY_DOUBLE);
+			npy_intp patches_shape[] = { sample_size, n_channels, patch_size, patch_size };
+			patches = (PyArrayObject*)PyArray_SimpleNew(4, &patches_shape[0], NPY_DOUBLE);
 						
-			extractSampledPatches_impl((double*)input->data, (double**)&patches->data, height, width, n_channels, patch_size, patch_stride, patch_extraction_mode, sample_indices + 1, *sample_indices);
+			extractSampledPatches_impl((double*)input->data, (double**)&(patches->data), height, width, n_channels, patch_size, patch_stride, sample_indices, sample_size);
 			
 			free(sample_indices);
 			
 			sample_patches_tuple = PyTuple_New(2);
-			PyTuple_SetItem(sample_patches_tuple, 0, patches);
-			PyTuple_SetItem(sample_patches_tuple, 1, patches_sample);
+			PyTuple_SetItem(sample_patches_tuple, 0, (PyObject*)patches);
+			PyTuple_SetItem(sample_patches_tuple, 1, (PyObject*)patches_sample);
 		}
 	}
 	else
 	{
 		npy_intp patches_shape[] = { patches_sample->dimensions[0], n_channels, patch_size, patch_size };
-		patches = PyArray_SimpleNew(4, &patches_shape[0], NPY_DOUBLE);
-				
-		extractSampledPatches_impl((double*)input->data, (double**)&patches->data, height, width, n_channels, patch_size, patch_stride, patch_extraction_mode, (unsigned int *)patches_sample->data, (unsigned int)patches_sample->dimensions[0]);
+		patches = (PyArrayObject*)PyArray_SimpleNew(4, &patches_shape[0], NPY_DOUBLE);
+		
+		DEBNUMMSG("Extracting %i samples, ", patches_sample->dimensions[0]);
+		DEBNUMMSG("of size: %ix", patch_size);
+		DEBNUMMSG("%i and", patch_size);
+		DEBNUMMSG(" %i channels\n", n_channels);
+		extractSampledPatches_impl((double*)(input->data), (double**)&(patches->data), height, width, n_channels, patch_size, patch_stride, (unsigned int *)(patches_sample->data), (unsigned int)(patches_sample->dimensions[0]));
 
-		sample_patches_tuple = patches;
+		sample_patches_tuple = (PyObject*)patches;
 	}
 
 	return sample_patches_tuple;
 }
 
 
-static PyObject* extracºtSampledPatches(PyObject *self, PyObject *args, PyObject *kw)
+static PyObject* extractSampledPatches(PyObject *self, PyObject *args, PyObject *kw)
 {
 	PyArrayObject *input;
     unsigned int height, width, n_channels;            
@@ -834,7 +841,7 @@ static PyObject* extracºtSampledPatches(PyObject *self, PyObject *args, PyObjec
     unsigned char patch_extraction_mode = 1;
     double sample_percentage = 1.0;
     
-    char keywords[7][64] = {"", "", "", "patch_extraction_mode", "sample_percentage", "patches_samples", "labels"};
+    static char *keywords[] = {"input", "patch_size", "patch_stride", "patch_extraction_mode", "sample_percentage", "patches_samples", "labels", NULL};
     
     if (!PyArg_ParseTupleAndKeywords(args, kw, "O!II|$bdO!O!", keywords, &PyArray_Type, &input, &patch_size, &patch_stride, &patch_extraction_mode, &sample_percentage, &PyArray_Type, &patches_sample, &PyArray_Type, &labels))
     {
@@ -847,6 +854,7 @@ static PyObject* extracºtSampledPatches(PyObject *self, PyObject *args, PyObjec
 
 static PyObject* extractAllPatchesAndClasses_pyinterface(PyArrayObject *input, const unsigned int patch_size, const unsigned int patch_stride, const unsigned char patch_extraction_mode)
 {	
+	unsigned int height, width, n_channels;
 	if (input->nd > 2)
 	{
 		n_channels = (unsigned int)input->dimensions[0];
@@ -867,20 +875,20 @@ static PyObject* extractAllPatchesAndClasses_pyinterface(PyArrayObject *input, c
 	const unsigned int class_labels_width = (patch_extraction_mode == 0) ? patch_size : 1;
 	const unsigned int class_labels_offset = (patch_extraction_mode == 0) ? class_labels_height*class_labels_width*n_channels : n_channels;
 
-	PyObject *patches = NULL;
-    PyObject *patches_classes = NULL;
+	PyArrayObject *patches = NULL;
+    PyArrayObject *patches_classes = NULL;
     
 	npy_intp patches_shape[] = { n_patches_in_height*n_patches_in_width, n_channels, patch_size, patch_size };
-	patches = PyArray_SimpleNew(4, &patches_shape[0], NPY_DOUBLE);
+	patches = (PyArrayObject*)PyArray_SimpleNew(4, &patches_shape[0], NPY_DOUBLE);
 				
 	npy_intp patches_classes_shape[] = { n_patches_in_height*n_patches_in_width, n_channels, class_labels_height, class_labels_width };
-	patches_classes = PyArray_SimpleNew(4, &patches_classes_shape[0], NPY_DOUBLE);
+	patches_classes = (PyArrayObject*)PyArray_SimpleNew(4, &patches_classes_shape[0], NPY_DOUBLE);
 	
-	extractAllPatchesAndClasses_impl((double*)input->data, (double**)&output->data, (double**)&patches_classes->data, height, width, n_channels, patch_size, patch_stride, patch_extraction_mode);
+	extractAllPatchesAndClasses_impl((double*)(input->data), (double**)&(patches->data), (double**)&(patches_classes->data), height, width, n_channels, patch_size, patch_stride, patch_extraction_mode);
 
     PyObject *sample_patches_tuple = sample_patches_tuple = PyTuple_New(2);
-	PyTuple_SetItem(sample_patches_tuple, 0, patches);
-	PyTuple_SetItem(sample_patches_tuple, 1, patches_classes);
+	PyTuple_SetItem(sample_patches_tuple, 0, (PyObject*)patches);
+	PyTuple_SetItem(sample_patches_tuple, 1, (PyObject*)patches_classes);
 
 	return sample_patches_tuple;
 }
@@ -894,9 +902,9 @@ static PyObject* extractAllPatchesAndClasses(PyObject *self, PyObject *args, PyO
     
     unsigned char patch_extraction_mode = 1;
     
-    char keywords[4][64] = {"", "", "", "patch_extraction_mode"};
+    static char *keywords[] = {"input", "patch_size", "patch_stride", "patch_extraction_mode", NULL};
     
-    if (!PyArg_ParseTupleAndKeywords(args, kw, "O!II|$b", keywords, &PyArray_Type, &input, &patch_size, &patch_stride, &patch_extraction_mode)
+    if (!PyArg_ParseTupleAndKeywords(args, kw, "O!II|$b", keywords, &PyArray_Type, &input, &patch_size, &patch_stride, &patch_extraction_mode))
     {
 		return NULL;
 	}
@@ -907,6 +915,7 @@ static PyObject* extractAllPatchesAndClasses(PyObject *self, PyObject *args, PyO
 
 static PyObject* extractAllPatches_pyinterface(PyArrayObject *input, const unsigned int patch_size, const unsigned int patch_stride)
 {
+    unsigned int height, width, n_channels;  
 	if (input->nd > 2)
 	{
 		n_channels = (unsigned int)input->dimensions[0];
@@ -924,11 +933,11 @@ static PyObject* extractAllPatches_pyinterface(PyArrayObject *input, const unsig
 	const unsigned int n_patches_in_height = (unsigned int)floor((double)(height - patch_size + patch_stride) / (double)patch_stride);
 	
 	npy_intp patches_shape[] = { n_patches_in_height*n_patches_in_width, n_channels, patch_size, patch_size };
-	PyObject *patches = patches = PyArray_SimpleNew(4, &patches_shape[0], NPY_DOUBLE);
+	PyArrayObject *patches = (PyArrayObject*)PyArray_SimpleNew(4, &patches_shape[0], NPY_DOUBLE);
 	
-	extractAllPatches_impl((double*)input->data, (double**)&patches->data, height, width, n_channels, patch_size, patch_stride);
+	extractAllPatches_impl((double*)(input->data), (double**)&(patches->data), height, width, n_channels, patch_size, patch_stride);
 
-	return patches;
+	return (PyObject*)patches;
 }
 
 
@@ -938,7 +947,7 @@ static PyObject* extractAllPatches(PyObject *self, PyObject *args)
     unsigned int height, width, n_channels;            
     unsigned int patch_size, patch_stride;
         
-    if (!PyArg_ParseTuple(args, "O!II", keywords, &PyArray_Type, &input, &patch_size, &patch_stride)
+    if (!PyArg_ParseTuple(args, "O!II", &PyArray_Type, &input, &patch_size, &patch_stride))
     {
 		return NULL;
 	}
@@ -959,7 +968,7 @@ static PyObject* samplePatches(PyObject *self, PyObject *args, PyObject *kw)
     unsigned char patch_extraction_mode = 4;
     double sample_percentage = -1.0;
     
-    char keywords[7][64] = {"", "", "", "patch_extraction_mode", "sample_percentage", "patches_samples", "labels"};
+    static char *keywords[] = {"input", "patch_size", "patch_stride", "patch_extraction_mode", "sample_percentage", "patches_samples", "labels", NULL};
     
     if (!PyArg_ParseTupleAndKeywords(args, kw, "O!II|$bdO!O!", keywords, &PyArray_Type, &input, &patch_size, &patch_stride, &patch_extraction_mode, &sample_percentage, &PyArray_Type, &patches_sample, &PyArray_Type, &labels))
     {
@@ -984,17 +993,17 @@ static PyObject* samplePatches(PyObject *self, PyObject *args, PyObject *kw)
 		return extractAllPatchesAndClasses_pyinterface(input, patch_size, patch_stride, patch_extraction_mode);
 	}
 	
-	return extractAllPatches_pyinterface(input, patch_size, patch_stride, patch_extraction_mode);
+	return extractAllPatches_pyinterface(input, patch_size, patch_stride);
 }
 
 
 static PyMethodDef patchextraction_methods[] = {
 	{ "computeClasses", computeClasses, METH_VARARGS, "Compute the class labels of each possible patch according to the patch extraction mode." },
-	{ "generatePatchesSample", generatePatchesSample, METH_VARARGS, "Generates a sample of patches selected according to the sample percentage." },
-	{ "samplePatches", samplePatches, METH_VARARGS, "Applies the corresponding extraction procedure, according to the sample percentage, and patch extractio mode defined." },
-	{ "extractSampledPatchesAndClasses", extractSampledPatchesAndClasses, METH_VARARGS, "Extracts a sample of patches and their corresponding classes, according to the sample percentage defined." },
-	{ "extractSampledPatches", extractSampledPatches, METH_VARARGS, "Extracts a sample of patches, according to the sample percentage defined." },
-	{ "extractAllPatchesAndClasses", extractAllPatchesAndClasses, METH_VARARGS, "Extracts all the patches and their corresponding classes." },
+	{ "generatePatchesSample", (PyCFunction)generatePatchesSample, METH_VARARGS | METH_KEYWORDS, "Generates a sample of patches selected according to the sample percentage." },
+	{ "samplePatches", (PyCFunction)samplePatches, METH_VARARGS|METH_KEYWORDS, "Applies the corresponding extraction procedure, according to the sample percentage, and patch extractio mode defined." },
+	{ "extractSampledPatchesAndClasses", (PyCFunction)extractSampledPatchesAndClasses, METH_VARARGS|METH_KEYWORDS, "Extracts a sample of patches and their corresponding classes, according to the sample percentage defined." },
+	{ "extractSampledPatches", (PyCFunction)extractSampledPatches, METH_VARARGS|METH_KEYWORDS, "Extracts a sample of patches, according to the sample percentage defined." },
+	{ "extractAllPatchesAndClasses", (PyCFunction)extractAllPatchesAndClasses, METH_VARARGS|METH_KEYWORDS, "Extracts all the patches and their corresponding classes." },
 	{ "extractAllPatches", extractAllPatches, METH_VARARGS, "Extracts all the patches." },
 	{ NULL, NULL, 0, NULL }
 };
@@ -1005,11 +1014,7 @@ static struct PyModuleDef patchextraction_moduledef = {
 	"patchextraction",
 	NULL,
 	-1,
-	patchextraction_methods,
-	NULL,
-	NULL,
-	NULL,
-	NULL
+	patchextraction_methods
 };
 
 
