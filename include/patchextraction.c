@@ -254,6 +254,7 @@ unsigned int generatePatchesSample_impl(unsigned int ** sample_indices, double *
 	// Balance the probability of take a patch of each class and insert it into the sample:
 	double negative_patch_sampling_percentage = ((negative_patches_count <= positive_patches_count) ? 1.0 : (double)positive_patches_count/(double)negative_patches_count)*sample_percentage;
 	double positive_patch_sampling_percentage = ((positive_patches_count <= negative_patches_count) ? 1.0 : (double)negative_patches_count/(double)positive_patches_count)*sample_percentage;
+	
 	if (sample_percentage > 1.0)
 	{
 		sample_size = (unsigned int)floor(sample_percentage);
@@ -262,7 +263,7 @@ unsigned int generatePatchesSample_impl(unsigned int ** sample_indices, double *
 	}
 	else
 	{
-		sample_size = (unsigned int)floor(sample_percentage*((positive_patches_count < negative_patches_count) ? (double)positive_patches_count : (double)negative_patches_count));
+		sample_size = 2*(unsigned int)floor(sample_percentage*((positive_patches_count < negative_patches_count) ? (double)positive_patches_count : (double)negative_patches_count));
 	}
 	DEBNUMMSG("Sample size: %i\n", sample_size);
 	*sample_indices = (unsigned int*)malloc(sample_size*sizeof(unsigned int));
@@ -730,7 +731,7 @@ static PyObject* extractSampledPatchesAndClasses(PyObject *self, PyObject *args,
     unsigned char patch_extraction_mode = 1;
     double sample_percentage = 1.0;
     
-    static char *keywords[] = {"input", "patch_size", "patch_stride", "patch_extraction_mode", "sample_percentage", "patches_samples", "labels", NULL};
+    static char *keywords[] = {"input", "patch_size", "patch_stride", "patch_extraction_mode", "sample_percentage", "patches_sample", "labels", NULL};
     
     if (!PyArg_ParseTupleAndKeywords(args, kw, "O!II|$bdO!O!", keywords, &PyArray_Type, &input, &patch_size, &patch_stride, &patch_extraction_mode, &sample_percentage, &PyArray_Type, &patches_sample, &PyArray_Type, &labels))
     {
@@ -817,7 +818,7 @@ static PyObject* extractSampledPatches_pyinterface(PyArrayObject *input, PyArray
 		npy_intp patches_shape[] = { patches_sample->dimensions[0], n_channels, patch_size, patch_size };
 		patches = (PyArrayObject*)PyArray_SimpleNew(4, &patches_shape[0], NPY_DOUBLE);
 		
-		DEBNUMMSG("Extracting %i samples, ", patches_sample->dimensions[0]);
+		DEBNUMMSG("Extracting %i samples, ", (int)patches_sample->dimensions[0]);
 		DEBNUMMSG("of size: %ix", patch_size);
 		DEBNUMMSG("%i and", patch_size);
 		DEBNUMMSG(" %i channels\n", n_channels);
@@ -841,7 +842,7 @@ static PyObject* extractSampledPatches(PyObject *self, PyObject *args, PyObject 
     unsigned char patch_extraction_mode = 1;
     double sample_percentage = 1.0;
     
-    static char *keywords[] = {"input", "patch_size", "patch_stride", "patch_extraction_mode", "sample_percentage", "patches_samples", "labels", NULL};
+    static char *keywords[] = {"input", "patch_size", "patch_stride", "patch_extraction_mode", "sample_percentage", "patches_sample", "labels", NULL};
     
     if (!PyArg_ParseTupleAndKeywords(args, kw, "O!II|$bdO!O!", keywords, &PyArray_Type, &input, &patch_size, &patch_stride, &patch_extraction_mode, &sample_percentage, &PyArray_Type, &patches_sample, &PyArray_Type, &labels))
     {
@@ -932,6 +933,7 @@ static PyObject* extractAllPatches_pyinterface(PyArrayObject *input, const unsig
 	const unsigned int n_patches_in_width = (unsigned int)floor((double)(width - patch_size + patch_stride) / (double)patch_stride);
 	const unsigned int n_patches_in_height = (unsigned int)floor((double)(height - patch_size + patch_stride) / (double)patch_stride);
 	
+	DEBNUMMSG("Extracting %i patches\n", n_patches_in_height*n_patches_in_width);
 	npy_intp patches_shape[] = { n_patches_in_height*n_patches_in_width, n_channels, patch_size, patch_size };
 	PyArrayObject *patches = (PyArrayObject*)PyArray_SimpleNew(4, &patches_shape[0], NPY_DOUBLE);
 	
@@ -968,7 +970,7 @@ static PyObject* samplePatches(PyObject *self, PyObject *args, PyObject *kw)
     unsigned char patch_extraction_mode = 4;
     double sample_percentage = -1.0;
     
-    static char *keywords[] = {"input", "patch_size", "patch_stride", "patch_extraction_mode", "sample_percentage", "patches_samples", "labels", NULL};
+    static char *keywords[] = {"input", "patch_size", "patch_stride", "patch_extraction_mode", "sample_percentage", "patches_sample", "labels", NULL};
     
     if (!PyArg_ParseTupleAndKeywords(args, kw, "O!II|$bdO!O!", keywords, &PyArray_Type, &input, &patch_size, &patch_stride, &patch_extraction_mode, &sample_percentage, &PyArray_Type, &patches_sample, &PyArray_Type, &labels))
     {
