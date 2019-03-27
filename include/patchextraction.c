@@ -126,7 +126,7 @@ void extractSinglePatchAndClass_mean(double * input, double * output, double * c
 			for (unsigned int x = 0; x < patch_size; x++)
 			{
 				*(output + z + y*patch_size*n_channels + x*n_channels) = *(input + z + (y + patch_y*patch_stride)*width*n_channels + (patch_x*patch_stride + x)*n_channels);
-				mean_class += *(input + z + (y + patch_y*patch_stride)*width*n_channels + patch_x*patch_stride + x)*n_channels);
+				mean_class += *(input + z + (y + patch_y*patch_stride)*width*n_channels + patch_x*patch_stride + x*n_channels);
 			}
 		}
 		
@@ -215,6 +215,8 @@ void computeClasses_impl(double * input, double ** class_labels, const unsigned 
 	{
 		*class_labels = (double*)malloc(n_patches_in_height*n_patches_in_width*class_labels_offset*sizeof(double));
 	}
+	
+	DEBMSG("Ready to perform the extraction ...\n");
 	
 	for (unsigned int patch_y = 0; patch_y < n_patches_in_height; patch_y++)
 	{
@@ -534,8 +536,15 @@ static PyObject* computeClasses(PyObject *self, PyObject *args)
 		n_channels = 1;
 	}
 	
+	DEBNUMMSG("Height: %i, ", height);
+	DEBNUMMSG("width: %i, ", width);
+	DEBNUMMSG("n_channels: %i, ", n_channels);
+	DEBNUMMSG("patch_extraction_mode: %i\n", patch_extraction_mode);
+	
 	const unsigned int n_patches_in_width = (unsigned int)floor((double)(width - patch_size + patch_stride) / (double)patch_stride);
 	const unsigned int n_patches_in_height = (unsigned int)floor((double)(height - patch_size + patch_stride) / (double)patch_stride);
+	DEBNUMMSG("n_patches_in_width: %i, ", n_patches_in_width);
+	DEBNUMMSG("n_patches_in_height: %i\n", n_patches_in_height);
 			
 	const unsigned int class_labels_height = (patch_extraction_mode == 0) ? patch_size : 1;
 	const unsigned int class_labels_width = (patch_extraction_mode == 0) ? patch_size : 1;
@@ -759,6 +768,11 @@ static PyObject* extractSampledPatches_pyinterface(PyArrayObject *input, PyArray
 		width = (unsigned int)input->dimensions[1];
 		n_channels = 1;
 	}
+		
+	DEBNUMMSG("height: %i, ", height);
+	DEBNUMMSG("width: %i, ", width);
+	DEBNUMMSG("n_channels: %i\n", n_channels);
+	
 	
 	const unsigned int n_patches_in_width = (unsigned int)floor((double)(width - patch_size + patch_stride) / (double)patch_stride);
 	const unsigned int n_patches_in_height = (unsigned int)floor((double)(height - patch_size + patch_stride) / (double)patch_stride);
@@ -817,7 +831,7 @@ static PyObject* extractSampledPatches_pyinterface(PyArrayObject *input, PyArray
 	}
 	else
 	{
-		npy_intp patches_shape[] = { patches_sample->dimensions[0], n_channels, patch_size, patch_size };
+		npy_intp patches_shape[] = { patches_sample->dimensions[0], patch_size, patch_size, n_channels };
 		patches = (PyArrayObject*)PyArray_SimpleNew(4, &patches_shape[0], NPY_DOUBLE);
 		
 		DEBNUMMSG("Extracting %i samples, ", (int)patches_sample->dimensions[0]);
