@@ -19,13 +19,14 @@ None
 
 void extractPatchClass_same(double * input, double * class_labels, const unsigned int patch_x, const unsigned int patch_y, const unsigned int height, const unsigned int width, const unsigned int n_channels, const unsigned int patch_size, const unsigned int patch_stride)
 {
-	for (unsigned int z = 0; z < n_channels; z++)
+	for (unsigned int y = 0; y < patch_size; y++)
 	{
-		for (unsigned int y = 0; y < patch_size; y++)
+		for (unsigned int x = 0; x < patch_size; x++)
 		{
-			for (unsigned int x = 0; x < patch_size; x++)
+			for (unsigned int z = 0; z < n_channels; z++)
 			{
-				*(class_labels + z*patch_size*patch_size + y*patch_size + x) = *(input + z*height*width + (y + patch_y*patch_stride)*width + patch_x*patch_stride + x);
+				*(class_labels + y*patch_size*n_channels + x*n_channels + z) = 
+					*(input + (y + patch_y*patch_stride)*width*n_channels + (patch_x*patch_stride + x)*n_channels + z);
 			}
 		}
 	}
@@ -36,25 +37,26 @@ void extractPatchClass_center(double * input, double * class_labels, const unsig
 {
 	for (unsigned int z = 0; z < n_channels; z++)
 	{
-		*(class_labels + z) = *(input + z*height*width + (patch_size/2 + patch_y*patch_stride)*width + patch_x*patch_stride + patch_size/2);
+		*(class_labels + z) = *(input + (patch_size/2 + patch_y*patch_stride)*width*n_channels + (patch_x*patch_stride + patch_size/2)*n_channels);
 	}
 }
 
 
 void extractPatchClass_mean(double * input, double * class_labels, const unsigned int patch_x, const unsigned int patch_y, const unsigned int height, const unsigned int width, const unsigned int n_channels, const unsigned int patch_size, const unsigned int patch_stride)
-{
+{		
 	for (unsigned int z = 0; z < n_channels; z++)
 	{
-		double mean_class = 0.0;
+		double mean_input = 0.0;
+	
 		for (unsigned int y = 0; y < patch_size; y++)
 		{
 			for (unsigned int x = 0; x < patch_size; x++)
 			{
-				mean_class += *(input + z*height*width + (y + patch_y*patch_stride)*width + patch_x*patch_stride + x);
+				mean_input += *(input + z + (y + patch_y*patch_stride)*width*n_channels + (patch_x*patch_stride + x)*n_channels);
 			}
 		}
-	
-		*(class_labels + z) = mean_class / (double)(patch_size*patch_size);
+		
+		 *(class_labels + z) = mean_input / (double)(patch_size*patch_size);
 	}
 }
 
@@ -69,9 +71,9 @@ void extractPatchClass_max(double * input, double * class_labels, const unsigned
 		{
 			for (unsigned int x = 0; x < patch_size; x++)
 			{
-				if (*max_class <  *(input + z*height*width + (y + patch_y*patch_stride)*width + patch_x*patch_stride + x))
+				if (*max_class <  *(input + z + (y + patch_y*patch_stride)*width*n_channels + (patch_x*patch_stride + x)*n_channels))
 				{
-					max_class = input + z*height*width + (y + patch_y*patch_stride)*width + patch_x*patch_stride + x;
+					max_class = input + z + (y + patch_y*patch_stride)*width*n_channels + (patch_x*patch_stride + x)*n_channels;
 				}
 			}
 		}
@@ -83,14 +85,14 @@ void extractPatchClass_max(double * input, double * class_labels, const unsigned
 
 void extractSinglePatchAndClass_same(double * input, double * output, double * class_labels, const unsigned int patch_x, const unsigned int patch_y, const unsigned int height, const unsigned int width, const unsigned int n_channels, const unsigned int patch_size, const unsigned int patch_stride)
 {
-	for (unsigned int z = 0; z < n_channels; z++)
+	for (unsigned int y = 0; y < patch_size; y++)
 	{
-		for (unsigned int y = 0; y < patch_size; y++)
+		for (unsigned int x = 0; x < patch_size; x++)
 		{
-			for (unsigned int x = 0; x < patch_size; x++)
+			for (unsigned int z = 0; z < n_channels; z++)
 			{
-				*(output + z*patch_size*patch_size + y*patch_size + x) = *(input + z*height*width + (y + patch_y*patch_stride)*width + patch_x*patch_stride + x);
-				*(class_labels + z*patch_size*patch_size + y*patch_size + x) = *(input + z*height*width + (y + patch_y*patch_stride)*width + patch_x*patch_stride + x);
+				*(output + z + y*patch_size*n_channels + x*n_channels) = *(input + z + (y + patch_y*patch_stride)*width*n_channels + (patch_x*patch_stride + x)*n_channels);
+				*(class_labels + z + y*patch_size*n_channels + x*n_channels) = *(input + z + (y + patch_y*patch_stride)*width*n_channels + (patch_x*patch_stride + x)*n_channels);
 			}
 		}
 	}
@@ -105,11 +107,11 @@ void extractSinglePatchAndClass_center(double * input, double * output, double *
 		{
 			for (unsigned int x = 0; x < patch_size; x++)
 			{
-				*(output + z*patch_size*patch_size + y*patch_size + x) = *(input + z*height*width + (y + patch_y*patch_stride)*width + patch_x*patch_stride + x);
+				*(output + z + y*patch_size*n_channels + x*n_channels) = *(input + z + (y + patch_y*patch_stride)*width*n_channels + (patch_x*patch_stride + x)*n_channels);
 			}
 		}
 		
-		*(class_labels + z) = *(input + z*height*width + (patch_size/2 + patch_y*patch_stride)*width + patch_x*patch_stride + patch_size/2);
+		*(class_labels + z) = *(input + z + (patch_size/2 + patch_y*patch_stride)*width*n_channels + (patch_x*patch_stride + patch_size/2)*n_channels);
 	}
 }
 
@@ -123,8 +125,8 @@ void extractSinglePatchAndClass_mean(double * input, double * output, double * c
 		{
 			for (unsigned int x = 0; x < patch_size; x++)
 			{
-				*(output + z*patch_size*patch_size + y*patch_size + x) = *(input + z*height*width + (y + patch_y*patch_stride)*width + patch_x*patch_stride + x);
-				mean_class += *(input + z*height*width + (y + patch_y*patch_stride)*width + patch_x*patch_stride + x);
+				*(output + z + y*patch_size*n_channels + x*n_channels) = *(input + z + (y + patch_y*patch_stride)*width*n_channels + (patch_x*patch_stride + x)*n_channels);
+				mean_class += *(input + z + (y + patch_y*patch_stride)*width*n_channels + patch_x*patch_stride + x)*n_channels);
 			}
 		}
 		
@@ -138,16 +140,16 @@ void extractSinglePatchAndClass_max(double * input, double * output, double * cl
 	
 	for (unsigned int z = 0; z < n_channels; z++)
 	{
-		double *max_class = input + z*height*width + patch_y*patch_stride*width + patch_x*patch_stride;
+		double *max_class = input + z + patch_y*patch_stride*width*n_channels + patch_x*patch_stride*n_channels;
 		
 		for (unsigned int y = 0; y < patch_size; y++)
 		{
 			for (unsigned int x = 0; x < patch_size; x++)
 			{
-				*(output + z*patch_size*patch_size + y*patch_size + x) = *(input + z*height*width + (y + patch_y*patch_stride)*width + patch_x*patch_stride + x);
-				if (*max_class <  *(input + z*height*width + (y + patch_y*patch_stride)*width + patch_x*patch_stride + x))
+				*(output + z + y*patch_size*n_channels + x*n_channels) = *(input + z + (y + patch_y*patch_stride)*width*n_channels + (patch_x*patch_stride + x)*n_channels);
+				if (*max_class <  *(input + z + (y + patch_y*patch_stride)*width*n_channels + (patch_x*patch_stride + x)*n_channels))
 				{
-					max_class = input + z*height*width + (y + patch_y*patch_stride)*width + patch_x*patch_stride + x;
+					max_class = input + z + (y + patch_y*patch_stride)*width*n_channels + (patch_x*patch_stride + x)*n_channels;
 				}
 			}
 		}
@@ -159,14 +161,13 @@ void extractSinglePatchAndClass_max(double * input, double * output, double * cl
 
 void extractSinglePatch(double * input, double * output, const unsigned int patch_x, const unsigned int patch_y, const unsigned int height, const unsigned int width, const unsigned int n_channels, const unsigned int patch_size, const unsigned int patch_stride)
 {
-	
-	for (unsigned int z = 0; z < n_channels; z++)
+	for (unsigned int y = 0; y < patch_size; y++)
 	{
-		for (unsigned int y = 0; y < patch_size; y++)
+		for (unsigned int x = 0; x < patch_size; x++)
 		{
-			for (unsigned int x = 0; x < patch_size; x++)
+			for (unsigned int z = 0; z < n_channels; z++)
 			{
-				*(output + z*patch_size*patch_size + y*patch_size + x) = *(input + z*height*width + (y + patch_y*patch_stride)*width + patch_x*patch_stride + x);
+				*(output + z + y*patch_size*n_channels + x*n_channels) = *(input + z + (y + patch_y*patch_stride)*width*n_channels + (patch_x*patch_stride + x)*n_channels);
 			}
 		}
 	}
@@ -265,6 +266,7 @@ unsigned int generatePatchesSample_impl(unsigned int ** sample_indices, double *
 	{
 		sample_size = 2*(unsigned int)floor(sample_percentage*((positive_patches_count < negative_patches_count) ? (double)positive_patches_count : (double)negative_patches_count));
 	}
+	
 	DEBNUMMSG("Sample size: %i\n", sample_size);
 	*sample_indices = (unsigned int*)malloc(sample_size*sizeof(unsigned int));
 	
@@ -275,7 +277,7 @@ unsigned int generatePatchesSample_impl(unsigned int ** sample_indices, double *
 	
 	DEBNUMMSG("Negative patch sampling percentage: %f\n", negative_patch_sampling_percentage);
 	DEBNUMMSG("Positive patch sampling percentage: %f\n", positive_patch_sampling_percentage);
-		
+	
 	double current_patch_class_sampling_percentage;
 	unsigned int * sample_indices_ptr = *sample_indices;
 	patch_xy = 0;
@@ -521,15 +523,15 @@ static PyObject* computeClasses(PyObject *self, PyObject *args)
 
 	if (input->nd > 2)
 	{
-		n_channels = (unsigned int)input->dimensions[0];
-		height = (unsigned int)input->dimensions[1];
-		width = (unsigned int)input->dimensions[2];
+		height = (unsigned int)input->dimensions[0];
+		width = (unsigned int)input->dimensions[1];
+		n_channels = (unsigned int)input->dimensions[2];
 	}
 	else
 	{
-		n_channels = 1;
 		height = (unsigned int)input->dimensions[0];
 		width = (unsigned int)input->dimensions[1];
+		n_channels = 1;
 	}
 	
 	const unsigned int n_patches_in_width = (unsigned int)floor((double)(width - patch_size + patch_stride) / (double)patch_stride);
@@ -542,7 +544,7 @@ static PyObject* computeClasses(PyObject *self, PyObject *args)
 	double * class_labels = (double*)malloc(n_patches_in_height*n_patches_in_width*class_labels_offset*sizeof(double));
 	computeClasses_impl((double*)input->data, &class_labels, height, width, n_channels, patch_size, patch_stride, patch_extraction_mode);
 	
-	npy_intp labels_shape[] = { n_patches_in_height*n_patches_in_width, n_channels, class_labels_height, class_labels_width };
+	npy_intp labels_shape[] = { n_patches_in_height*n_patches_in_width, class_labels_height, class_labels_width, n_channels };
 	PyArrayObject* labels = (PyArrayObject*)PyArray_SimpleNew(4, &labels_shape[0], NPY_DOUBLE);
 	
 	memcpy((double*)labels->data, class_labels, n_patches_in_height*n_patches_in_width*class_labels_offset*sizeof(double));
@@ -572,15 +574,15 @@ static PyObject* generatePatchesSample(PyObject *self, PyObject *args, PyObject 
 			
 	if (input->nd > 2)
 	{
-		n_channels = (unsigned int)input->dimensions[0];
-		height = (unsigned int)input->dimensions[1];
-		width = (unsigned int)input->dimensions[2];
+		height = (unsigned int)input->dimensions[0];
+		width = (unsigned int)input->dimensions[1];
+		n_channels = (unsigned int)input->dimensions[2];
 	}
 	else
 	{
-		n_channels = 1;
 		height = (unsigned int)input->dimensions[0];
 		width = (unsigned int)input->dimensions[1];
+		n_channels = 1;
 	}
 	
 	const unsigned int n_patches_in_width = (unsigned int)floor((double)(width - patch_size + patch_stride) / (double)patch_stride);
@@ -659,10 +661,10 @@ static PyObject* extractSampledPatchesAndClasses_pyinterface(PyArrayObject *inpu
 			patches_sample = (PyArrayObject*)PyArray_SimpleNew(1, &patches_sample_shape[0], NPY_UINT32);
 			memcpy((unsigned int*)patches_sample->data, sample_indices, sample_size*sizeof(unsigned int));
 			
-			npy_intp patches_shape[] = { sample_size, n_channels, patch_size, patch_size };
+			npy_intp patches_shape[] = { sample_size, patch_size, patch_size, n_channels };
 			patches = (PyArrayObject*)PyArray_SimpleNew(4, &patches_shape[0], NPY_DOUBLE);
 						
-			npy_intp patches_classes_shape[] = { sample_size, n_channels, class_labels_height, class_labels_width };
+			npy_intp patches_classes_shape[] = { sample_size, class_labels_height, class_labels_width, n_channels };
 			patches_classes = (PyArrayObject*)PyArray_SimpleNew(4, &patches_classes_shape[0], NPY_DOUBLE);
 			
 			extractSampledPatchesAndClasses_impl((double*)(input->data), (double**)&(patches->data), (double**)&patches_classes->data, height, width, n_channels, patch_size, patch_stride, patch_extraction_mode, sample_indices + 1, *sample_indices);
@@ -685,10 +687,10 @@ static PyObject* extractSampledPatchesAndClasses_pyinterface(PyArrayObject *inpu
 			patches_sample = (PyArrayObject*)PyArray_SimpleNew(1, &patches_sample_shape[0], NPY_UINT32);
 			memcpy((unsigned int*)patches_sample->data, sample_indices, sample_size*sizeof(unsigned int));
 			
-			npy_intp patches_shape[] = { sample_size, n_channels, patch_size, patch_size };
+			npy_intp patches_shape[] = { sample_size, patch_size, patch_size, n_channels };
 			patches = (PyArrayObject*)PyArray_SimpleNew(4, &patches_shape[0], NPY_DOUBLE);
 			
-			npy_intp patches_classes_shape[] = { sample_size, n_channels, class_labels_height, class_labels_width };
+			npy_intp patches_classes_shape[] = { sample_size, class_labels_height, class_labels_width, n_channels };
 			patches_classes = (PyArrayObject*)PyArray_SimpleNew(4, &patches_classes_shape[0], NPY_DOUBLE);
 			
 			extractSampledPatchesAndClasses_impl((double*)input->data, (double**)&patches->data, (double**)&patches_classes->data, height, width, n_channels, patch_size, patch_stride, patch_extraction_mode, sample_indices + 1, *sample_indices);
@@ -703,10 +705,10 @@ static PyObject* extractSampledPatchesAndClasses_pyinterface(PyArrayObject *inpu
 	}
 	else
 	{
-		npy_intp patches_shape[] = { patches_sample->dimensions[0], n_channels, patch_size, patch_size };
+		npy_intp patches_shape[] = { patches_sample->dimensions[0], patch_size, patch_size, n_channels };
 		patches = (PyArrayObject*)PyArray_SimpleNew(4, &patches_shape[0], NPY_DOUBLE);
 		
-		npy_intp patches_classes_shape[] = { patches_sample->dimensions[0], n_channels, class_labels_height, class_labels_width };
+		npy_intp patches_classes_shape[] = { patches_sample->dimensions[0], class_labels_height, class_labels_width, n_channels };
 		patches_classes = (PyArrayObject*)PyArray_SimpleNew(4, &patches_classes_shape[0], NPY_DOUBLE);
 		
 		extractSampledPatchesAndClasses_impl((double*)input->data, (double**)&patches->data, (double**)&patches_classes->data, height, width, n_channels, patch_size, patch_stride, patch_extraction_mode, (unsigned int *)patches_sample->data, (unsigned int)patches_sample->dimensions[0]);
@@ -747,15 +749,15 @@ static PyObject* extractSampledPatches_pyinterface(PyArrayObject *input, PyArray
 	unsigned int height, width, n_channels;
 	if (input->nd > 2)
 	{
-		n_channels = (unsigned int)input->dimensions[0];
-		height = (unsigned int)input->dimensions[1];
-		width = (unsigned int)input->dimensions[2];
+		height = (unsigned int)input->dimensions[0];
+		width = (unsigned int)input->dimensions[1];
+		n_channels = (unsigned int)input->dimensions[2];
 	}
 	else
 	{
-		n_channels = 1;
 		height = (unsigned int)input->dimensions[0];
 		width = (unsigned int)input->dimensions[1];
+		n_channels = 1;
 	}
 	
 	const unsigned int n_patches_in_width = (unsigned int)floor((double)(width - patch_size + patch_stride) / (double)patch_stride);
@@ -779,7 +781,7 @@ static PyObject* extractSampledPatches_pyinterface(PyArrayObject *input, PyArray
 			patches_sample = (PyArrayObject*)PyArray_SimpleNew(1, &patches_sample_shape[0], NPY_UINT32);
 			memcpy((unsigned int*)patches_sample->data, sample_indices, sample_size*sizeof(unsigned int));
 			
-			npy_intp patches_shape[] = { sample_size, n_channels, patch_size, patch_size };
+			npy_intp patches_shape[] = { sample_size, patch_size, patch_size, n_channels };
 			patches = (PyArrayObject*)PyArray_SimpleNew(4, &patches_shape[0], NPY_DOUBLE);
 			
 			extractSampledPatches_impl((double*)input->data, (double**)&(patches->data), height, width, n_channels, patch_size, patch_stride, sample_indices, sample_size);
@@ -801,7 +803,7 @@ static PyObject* extractSampledPatches_pyinterface(PyArrayObject *input, PyArray
 			patches_sample = (PyArrayObject*)PyArray_SimpleNew(1, &patches_sample_shape[0], NPY_UINT32);
 			memcpy((unsigned int*)patches_sample->data, sample_indices, sample_size*sizeof(unsigned int));
 			
-			npy_intp patches_shape[] = { sample_size, n_channels, patch_size, patch_size };
+			npy_intp patches_shape[] = { sample_size, patch_size, patch_size, n_channels };
 			patches = (PyArrayObject*)PyArray_SimpleNew(4, &patches_shape[0], NPY_DOUBLE);
 						
 			extractSampledPatches_impl((double*)input->data, (double**)&(patches->data), height, width, n_channels, patch_size, patch_stride, sample_indices, sample_size);
@@ -858,15 +860,15 @@ static PyObject* extractAllPatchesAndClasses_pyinterface(PyArrayObject *input, c
 	unsigned int height, width, n_channels;
 	if (input->nd > 2)
 	{
-		n_channels = (unsigned int)input->dimensions[0];
-		height = (unsigned int)input->dimensions[1];
-		width = (unsigned int)input->dimensions[2];
+		height = (unsigned int)input->dimensions[0];
+		width = (unsigned int)input->dimensions[1];
+		n_channels = (unsigned int)input->dimensions[2];
 	}
 	else
 	{
-		n_channels = 1;
 		height = (unsigned int)input->dimensions[0];
 		width = (unsigned int)input->dimensions[1];
+		n_channels = 1;
 	}
 	
 	const unsigned int n_patches_in_width = (unsigned int)floor((double)(width - patch_size + patch_stride) / (double)patch_stride);
@@ -879,10 +881,10 @@ static PyObject* extractAllPatchesAndClasses_pyinterface(PyArrayObject *input, c
 	PyArrayObject *patches = NULL;
     PyArrayObject *patches_classes = NULL;
     
-	npy_intp patches_shape[] = { n_patches_in_height*n_patches_in_width, n_channels, patch_size, patch_size };
+	npy_intp patches_shape[] = { n_patches_in_height*n_patches_in_width, patch_size, patch_size, n_channels };
 	patches = (PyArrayObject*)PyArray_SimpleNew(4, &patches_shape[0], NPY_DOUBLE);
-				
-	npy_intp patches_classes_shape[] = { n_patches_in_height*n_patches_in_width, n_channels, class_labels_height, class_labels_width };
+	
+	npy_intp patches_classes_shape[] = { n_patches_in_height*n_patches_in_width, class_labels_height, class_labels_width, n_channels };
 	patches_classes = (PyArrayObject*)PyArray_SimpleNew(4, &patches_classes_shape[0], NPY_DOUBLE);
 	
 	extractAllPatchesAndClasses_impl((double*)(input->data), (double**)&(patches->data), (double**)&(patches_classes->data), height, width, n_channels, patch_size, patch_stride, patch_extraction_mode);
@@ -919,22 +921,22 @@ static PyObject* extractAllPatches_pyinterface(PyArrayObject *input, const unsig
     unsigned int height, width, n_channels;  
 	if (input->nd > 2)
 	{
-		n_channels = (unsigned int)input->dimensions[0];
-		height = (unsigned int)input->dimensions[1];
-		width = (unsigned int)input->dimensions[2];
+		height = (unsigned int)input->dimensions[0];
+		width = (unsigned int)input->dimensions[1];
+		n_channels = (unsigned int)input->dimensions[2];
 	}
 	else
 	{
-		n_channels = 1;
 		height = (unsigned int)input->dimensions[0];
 		width = (unsigned int)input->dimensions[1];
+		n_channels = 1;
 	}
 	
 	const unsigned int n_patches_in_width = (unsigned int)floor((double)(width - patch_size + patch_stride) / (double)patch_stride);
 	const unsigned int n_patches_in_height = (unsigned int)floor((double)(height - patch_size + patch_stride) / (double)patch_stride);
 	
 	DEBNUMMSG("Extracting %i patches\n", n_patches_in_height*n_patches_in_width);
-	npy_intp patches_shape[] = { n_patches_in_height*n_patches_in_width, n_channels, patch_size, patch_size };
+	npy_intp patches_shape[] = { n_patches_in_height*n_patches_in_width, patch_size, patch_size, n_channels};
 	PyArrayObject *patches = (PyArrayObject*)PyArray_SimpleNew(4, &patches_shape[0], NPY_DOUBLE);
 	
 	extractAllPatches_impl((double*)(input->data), (double**)&(patches->data), height, width, n_channels, patch_size, patch_stride);
