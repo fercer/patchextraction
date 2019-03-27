@@ -19,8 +19,8 @@ SET install=false
 SET installation_path=
 
 if "%1" == "python" (
-    SET required_include_paths=%required_include_paths% /ID:\Apps\Anaconda3\include /ID:\Apps\Anaconda3\Lib\site-packages\numpy\core\include
-    SET required_libs=%required_libs% D:\Apps\Anaconda3\libs\python36.lib
+    SET required_include_paths=%required_include_paths% /I%PYTHON_3_6_INCLUDE_PATH% /I%NUMPY_CKN_INCLUDE_PATH%
+    SET required_libs=%required_libs% %PYTHON_3_6_LIBS% %NUMPY_CKN_LIBS%
     SET macros_definitions=%macros_definitions% /DBUILDING_PYTHON_MODULE
     SET dllname=patchextraction.pyd
     SET installation_path=%PYTHONPATH%
