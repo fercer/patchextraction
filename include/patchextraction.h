@@ -51,6 +51,7 @@ None
         #endif
     #endif
 #endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -66,42 +67,31 @@ None
 #define DEBNUMMSG(MESSAGE, NUM) 
 #endif
 
-void PATCHEXTRACTION_DLL_LOCAL extractPatchClass_same(double * input, double * class_labels, const unsigned int patch_x, const unsigned int patch_y, const unsigned int height, const unsigned int width, const unsigned int n_channels, const unsigned int patch_size, const unsigned int patch_stride);
-void PATCHEXTRACTION_DLL_LOCAL extractPatchClass_center(double * input, double * class_labels, const unsigned int patch_x, const unsigned int patch_y, const unsigned int height, const unsigned int width, const unsigned int n_channels, const unsigned int patch_size, const unsigned int patch_stride);
-void PATCHEXTRACTION_DLL_LOCAL extractPatchClass_mean(double * input, double * class_labels, const unsigned int patch_x, const unsigned int patch_y, const unsigned int height, const unsigned int width, const unsigned int n_channels, const unsigned int patch_size, const unsigned int patch_stride);
-void PATCHEXTRACTION_DLL_LOCAL extractPatchClass_max(double * input, double * class_labels, const unsigned int patch_x, const unsigned int patch_y, const unsigned int height, const unsigned int width, const unsigned int n_channels, const unsigned int patch_size, const unsigned int patch_stride);
-void PATCHEXTRACTION_DLL_LOCAL extractSinglePatchAndClass_same(double * input, double * output, double * class_labels, const unsigned int patch_x, const unsigned int patch_y, const unsigned int height, const unsigned int width, const unsigned int n_channels, const unsigned int patch_size, const unsigned int patch_stride);
-void PATCHEXTRACTION_DLL_LOCAL extractSinglePatchAndClass_center(double * input, double * output, double * class_labels, const unsigned int patch_x, const unsigned int patch_y, const unsigned int height, const unsigned int width, const unsigned int n_channels, const unsigned int patch_size, const unsigned int patch_stride);
-void PATCHEXTRACTION_DLL_LOCAL extractSinglePatchAndClass_mean(double * input, double * output, double * class_labels, const unsigned int patch_x, const unsigned int patch_y, const unsigned int height, const unsigned int width, const unsigned int n_channels, const unsigned int patch_size, const unsigned int patch_stride);
-void PATCHEXTRACTION_DLL_LOCAL extractSinglePatchAndClass_max(double * input, double * output, double * class_labels, const unsigned int patch_x, const unsigned int patch_y, const unsigned int height, const unsigned int width, const unsigned int n_channels, const unsigned int patch_size, const unsigned int patch_stride);
-void PATCHEXTRACTION_DLL_LOCAL extractSinglePatch(double * input, double * output, const unsigned int patch_x, const unsigned int patch_y, const unsigned int height, const unsigned int width, const unsigned int n_channels, const unsigned int patch_size, const unsigned int patch_stride);
+double * PATCHEXTRACTION_DLL_LOCAL extractPatches_impl(double * source, unsigned int * samples_count, const unsigned int height, const unsigned int width, const unsigned int n_channels, const unsigned int patch_size, unsigned int patch_stride);
 
-void PATCHEXTRACTION_DLL_PUBLIC computeClasses_impl(double * input, double ** class_labels, const unsigned int height, const unsigned int width, const unsigned int n_channels, const unsigned int patch_size, const unsigned int patch_stride, const unsigned char patch_extraction_mode);
-unsigned int PATCHEXTRACTION_DLL_PUBLIC generatePatchesSample_impl(unsigned int ** sample_indices, double * class_labels, const unsigned int height, const unsigned int width, const unsigned int n_channels, const unsigned int patch_size, const unsigned int patch_stride, const double sample_percentage);
-void PATCHEXTRACTION_DLL_PUBLIC samplePatches_impl(double * input, double ** output, double * class_labels, const unsigned int height, const unsigned int width, const unsigned int n_channels, const unsigned int patch_size, const unsigned int patch_stride, const unsigned char patch_extraction_mode, const double sample_percentage, unsigned int ** sample_indices_ptr);
-void PATCHEXTRACTION_DLL_PUBLIC extractSampledPatchesAndClasses_impl(double * input, double ** output, double ** class_labels, const unsigned int height, const unsigned int width, const unsigned int n_channels, const unsigned int patch_size, const unsigned int patch_stride, const unsigned char patch_extraction_mode, unsigned int * sample_indices, const unsigned int sample_size);
-void PATCHEXTRACTION_DLL_PUBLIC extractSampledPatches_impl(double * input, double ** output, const unsigned int height, const unsigned int width, const unsigned int n_channels, const unsigned int patch_size, const unsigned int patch_stride, unsigned int * sample_indices, const unsigned int sample_size);
-void PATCHEXTRACTION_DLL_PUBLIC extractAllPatchesAndClasses_impl(double * input, double ** output, double ** class_labels, const unsigned int height, const unsigned int width, const unsigned int n_channels, const unsigned int patch_size, const unsigned int patch_stride, const unsigned char patch_extraction_mode);
-void PATCHEXTRACTION_DLL_PUBLIC extractAllPatches_impl(double * input, double ** output, const unsigned int height, const unsigned int width, const unsigned int n_channels, const unsigned int patch_size, const unsigned int patch_stride);
+double * PATCHEXTRACTION_DLL_LOCAL extractSampledPatches_impl(double * source, unsigned int * sample_list, const unsigned int sample_size, const unsigned int height, const unsigned int width, const unsigned int n_channels, const unsigned int patch_size);
+
+void PATCHEXTRACTION_DLL_LOCAL markPatches_Full(double * class_labels, double * output, const unsigned int height, const unsigned int width, const unsigned int patch_size, const double threshold_count);
+
+void PATCHEXTRACTION_DLL_LOCAL markPatches_Center(double * class_labels, double * output, const unsigned int height, const unsigned int width, const unsigned int patch_size, const double threshold_count);
+
+void PATCHEXTRACTION_DLL_LOCAL markValidPatches_Full(double * class_labels, double * output, const unsigned int height, const unsigned int width, const unsigned int patch_size, const double threshold_count);
+
+void PATCHEXTRACTION_DLL_LOCAL markValidPatches_Center(double * class_labels, double * output, const unsigned int height, const unsigned int width, const unsigned int patch_size);
+
+double * PATCHEXTRACTION_DLL_LOCAL defineBackground(double * class_labels, unsigned int * background_count, const unsigned int height, const unsigned int width, const unsigned int patch_size);
+
+double * PATCHEXTRACTION_DLL_LOCAL defineForeground(double * class_labels, const unsigned char patch_extraction_mode, unsigned int * foreground_count, const unsigned int height, const unsigned int width, const unsigned int patch_size);
+
+unsigned int PATCHEXTRACTION_DLL_LOCAL balanceSamples(unsigned int * foreground_count, unsigned int * background_count);
+
+unsigned int * PATCHEXTRACTION_DLL_LOCAL samplePatches(double * class_labels, unsigned int labels_count, unsigned int sample_size, const unsigned int height, const unsigned int width);
 
 #ifdef BUILDING_PYTHON_MODULE
 static PyObject* computeClasses(PyObject *self, PyObject *args);
-
-static PyObject* generatePatchesSample(PyObject *self, PyObject *args, PyObject *kw);
-
-static PyObject* extractSampledPatchesAndClasses_pyinterface(PyArrayObject *input, PyArrayObject *labels, PyArrayObject *patches_sample, const unsigned int patch_size, const unsigned int patch_stride, const unsigned char patch_extraction_mode, const double sample_percentage);
-static PyObject* extractSampledPatchesAndClasses(PyObject *self, PyObject *args, PyObject *kw);
-
-static PyObject* extractSampledPatches_pyinterface(PyArrayObject *input, PyArrayObject *labels, PyArrayObject *patches_sample, const unsigned int patch_size, const unsigned int patch_stride, const unsigned char patch_extraction_mode, const double sample_percentage);
-static PyObject* extractSampledPatches(PyObject *self, PyObject *args, PyObject *kw);
-
-static PyObject* extractAllPatchesAndClasses_pyinterface(PyArrayObject *input, const unsigned int patch_size, const unsigned int patch_stride, const unsigned char patch_extraction_mode);
-static PyObject* extractAllPatchesAndClasses(PyObject *self, PyObject *args, PyObject *kw);
-
-static PyObject* extractAllPatches_pyinterface(PyArrayObject *input, const unsigned int patch_size, const unsigned int patch_stride);
-static PyObject* extractAllPatches(PyObject *self, PyObject *args);
-
-static PyObject* samplePatches(PyObject *self, PyObject *args, PyObject *kw);
+static PyObject* extractSampledPatches(PyObject *self, PyObject *args);
+static PyObject* extractPatches(PyObject *self, PyObject *args);
 #endif
+
 
 #endif //PATCHEXTRACTION_DLL_H_INCLUDED
