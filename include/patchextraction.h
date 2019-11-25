@@ -67,6 +67,10 @@ None
 #define DEBNUMMSG(MESSAGE, NUM) 
 #endif
 
+double * PATCHEXTRACTION_DLL_LOCAL defineClass_Full(double * source, const unsigned int height, const unsigned int width, const unsigned int patch_size, unsigned int patch_stride, const double threshold_count);
+
+double * PATCHEXTRACTION_DLL_LOCAL defineClass_Center(double * source, const unsigned int height, const unsigned int width, const unsigned int patch_size, unsigned int patch_stride);
+
 double * PATCHEXTRACTION_DLL_LOCAL extractPatches_impl(double * source, unsigned int * samples_count, const unsigned int height, const unsigned int width, const unsigned int n_channels, const unsigned int patch_size, unsigned int patch_stride);
 
 double * PATCHEXTRACTION_DLL_LOCAL extractSampledPatches_impl(double * source, unsigned int * sample_list, const unsigned int sample_size, const unsigned int height, const unsigned int width, const unsigned int n_channels, const unsigned int patch_size);
@@ -89,8 +93,9 @@ unsigned int * PATCHEXTRACTION_DLL_LOCAL samplePatches(double * class_labels, un
 
 #ifdef BUILDING_PYTHON_MODULE
 static PyObject* computeClasses(PyObject *self, PyObject *args);
-static PyObject* extractSampledPatches(PyObject *self, PyObject *args);
 static PyObject* extractPatches(PyObject *self, PyObject *args);
+static PyObject* computeSampledClasses(PyObject *self, PyObject *args);
+static PyObject* extractSampledPatches(PyObject *self, PyObject *args);
 #endif
 
 
