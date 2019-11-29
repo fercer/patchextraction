@@ -61,6 +61,8 @@ double * defineClass_Center(double * source, const unsigned int height, const un
 	const unsigned int n_samples_per_width = (width - patch_size + patch_stride) / patch_stride;
 	const unsigned int n_samples_per_height = (height - patch_size + patch_stride) / patch_stride;
 
+    printf("Extracting samples %i/height, %i/width\n", n_samples_per_height, n_samples_per_width);
+
 	const int offset = patch_size / 2;
 	double * patches_classes = (double*)malloc(n_samples_per_width*n_samples_per_height * sizeof(double));
 
@@ -97,7 +99,7 @@ double * extractPatches_impl(double * source, unsigned int * samples_count, cons
 					{
 						*(sampled_patches + (ys*n_samples_per_width + xs)*n_channels*patch_size*patch_size + z*patch_size*patch_size + (i + offset)*patch_size + j+offset) =
 							*(source + z*height*width + (ys*patch_stride + offset + i)*width + xs*patch_stride + offset + j);
-					}
+                    }
 				}
 			}
 		}
@@ -138,90 +140,6 @@ double * extractSampledPatches_impl(double * source, unsigned int * sample_list,
     return sampled_patches;
 }
 
-
-void markPatches_Full(double * class_labels, double * output, const unsigned int height, const unsigned int width, const unsigned int patch_size, const double threshold_count)
-{
-    memset((void*)output, 0, height*width*sizeof(double));
-    const int offset = patch_size/2;
-    int i, j;
-
-    for (unsigned int y = 0; y < height; y++)
-    {
-        const int i_ini = ((int)y < offset) ? -(int)y : -offset;
-        const int i_end = ((int)(height - y) < offset) ? (int)(height - y) : offset;
-        
-        for (unsigned int x = 0; x < width; x++)
-        {
-            const int j_ini = ((int)x < offset) ? -(int)x : -offset;
-            const int j_end = ((int)(width - x) < offset) ? (int)(width - x) : offset;
-            
-            double patch_sum = 0.0;
-            
-            for (i = i_ini; (i < i_end) && (patch_sum < threshold_count); i++)
-            {
-                for (j = j_ini; (j < j_end) && (patch_sum < threshold_count); j++)
-                {
-                    // If the current patch contains at least one positive pixel, fill the complete output corresponding patch.
-                    patch_sum += *(class_labels + (y + i)*width + x + j);
-                }
-            }
-            
-            if (patch_sum < threshold_count)
-            {
-                continue;
-            }
-
-            // Fill the output corresponding patch if at least one positive pixel is found.
-            for (i = i_ini; i < i_end; i++)
-            {
-                for (j = j_ini; j < j_end; j++)
-                {
-                    *(output + (y + i)*width + x + j) = 1.0;
-                }
-            }
-        }
-    }
-}
-
-
-void markPatches_Center(double * class_labels, double * output, const unsigned int height, const unsigned int width, const unsigned int patch_size, const double threshold_count)
-{
-    memset((void*)output, 0, height*width*sizeof(double));
-    const int offset = patch_size/2;
-    int i, j;
-    
-    for (unsigned int y = 0; y < height; y++)
-    {
-        const int i_ini = ((int)y < offset) ? -(int)y : -offset;
-        const int i_end = ((int)(height - y) < offset) ? (int)(height - y) : offset;
-        
-        for (unsigned int x = 0; x < width; x++)
-        {
-            
-            const int j_ini = ((int)x < offset) ? -(int)x : -offset;
-            const int j_end = ((int)(width - x) < offset) ? (int)(width - x) : offset;
-            
-            double patch_sum = 0.0;
-            
-            for (i = i_ini; (i < i_end) && (patch_sum < threshold_count); i++)
-            {
-                for (j = j_ini; (j < j_end) && (patch_sum < threshold_count); j++)
-                {
-                    // If the current patch contains at least one positive pixel, fill the complete output corresponding patch.
-                    patch_sum += *(class_labels + (y + i)*width + x + j);
-                }
-            }
-            
-            if (patch_sum < threshold_count)
-            {
-                continue;
-            }
-            
-            // Fill the output center if the threhsold is hit.
-            *(output + y*width + x) = 1.0;
-        }
-    }
-}
 
 
 void markValidPatches_Full(double * class_labels, double * output, const unsigned int height, const unsigned int width, const unsigned int patch_size, const double threshold_count)
@@ -268,6 +186,46 @@ void markValidPatches_Full(double * class_labels, double * output, const unsigne
 }
 
 
+void fillValidPatches_Full(double * class_labels, double * output, const unsigned int height, const unsigned int width, const unsigned int patch_size, const double threshold_count)
+{
+    memset(output, 0, height*width*sizeof(double));
+
+    const int offset = patch_size/2;
+    int i, j;
+    
+    for (int y = offset; y < ((int)height-offset); y++)
+    {
+        for (int x = offset; x < ((int)width-offset); x++)
+        {
+            double patch_sum = 0.0;
+            
+            for (i = -offset; (i < offset) && (patch_sum < threshold_count); i++)
+            {
+                for (j = -offset; (j < offset) && (patch_sum < threshold_count); j++)
+                {
+                    // If the current patch contains at least one positive pixel, fill the complete output corresponding patch.
+                    patch_sum += *(class_labels + (y + i)*width + x + j);
+                }
+            }
+            
+            if (patch_sum < threshold_count)
+            {
+                continue;
+            }
+            
+            // Fill the output center if the threhsold is hit.
+            for (i = -offset; i < offset; i++)
+            {
+                for (j = -offset; j < offset; j++)
+                {
+                    *(output + (y+i)*width + x+j) = 1.0;
+                }
+            }
+        }
+    }
+}
+
+
 void markValidPatches_Center(double * class_labels, double * output, const unsigned int height, const unsigned int width, const unsigned int patch_size)
 {
     memset((void*)output, 0, height*width*sizeof(double));
@@ -287,8 +245,38 @@ void markValidPatches_Center(double * class_labels, double * output, const unsig
                 continue;
             }
             
-            // Fill the output center if the threhsold is hit.
             *(output + y*width + x) = *(class_labels + y*width + x);
+        }
+    }
+}
+
+
+void fillValidPatches_Center(double * class_labels, double * output, const unsigned int height, const unsigned int width, const unsigned int patch_size)
+{
+    memset((void*)output, 0, height*width*sizeof(double));
+    const int offset = patch_size/2;
+    
+    for (unsigned int y = 0; y < height; y++)
+    {
+        if (((int)y < offset) || ((int)(height - y) < offset))
+        {
+            continue;
+        }
+        
+        for (unsigned int x = 0; x < width; x++)
+        {
+            if (((int)x < offset) || ((int)(width - x) < offset))
+            {
+                continue;
+            }
+            
+            for (int i = -offset; i<offset; i++)
+            {
+                for (int j=-offset; j<offset; j++)
+                {                    
+                    *(output + (y+i)*width + x+j) = 1.0;
+                }
+            }
         }
     }
 }
@@ -301,8 +289,8 @@ double * defineBackground(double * class_labels, unsigned int * background_count
     double * output_1 = (double*)malloc(height*width*sizeof(double));
     double * output_2 = (double*)malloc(height*width*sizeof(double));
 
-    markPatches_Full(class_labels, output_1, height, width, patch_size, 1.0);
-    markPatches_Full(output_1, output_2, height, width, 3, 1.0);
+    fillValidPatches_Full(class_labels, output_1, height, width, patch_size, 1.0);
+    fillValidPatches_Full(output_1, output_2, height, width, 3, 1.0);
     
     memset((void*)output_1, 0, height*width*sizeof(double));
     if (background_count){
@@ -320,8 +308,8 @@ double * defineBackground(double * class_labels, unsigned int * background_count
         }
     }
     
-    markPatches_Center(output_1, output_2, height, width, patch_size, (double)patch_size*patch_size);
-    
+    markValidPatches_Center(output_1, output_2, height, width, patch_size);
+
     free(output_1);
     return output_2;
 }
@@ -332,7 +320,7 @@ double * defineForeground(double * class_labels, const unsigned char patch_extra
 {
     // Define background as all patches that dows not contain any foreground pixel
     double * output = (double*)malloc(height*width*sizeof(double));
-    
+    printf("Define foreground for patch extraction mode: %i\n", (int)patch_extraction_mode);
     switch ((int)patch_extraction_mode)
     {
         case 0:
@@ -379,6 +367,7 @@ unsigned int * samplePatches(double * class_labels, unsigned int labels_count, u
 {
     unsigned int * sample_list = (unsigned int *)malloc(labels_count * sizeof(unsigned int));
     
+    printf("Sampling %i from %i patches.\n", sample_size, labels_count);
     // The first pass indexes the positions of each class pixel
     unsigned int indexed_count = 0;
     for (unsigned int xy = 0; (xy < height*width) && (indexed_count < labels_count); xy++)
@@ -556,6 +545,8 @@ static PyObject* computeSampledClasses(PyObject *self, PyObject *args)
 	PyTuple_SetItem(classes_tuple, 0, (PyObject*)foreground_sample_indices);
 	PyTuple_SetItem(classes_tuple, 1, (PyObject*)background_sample_indices);
 
+    printf("Samples computed successfully...\n");
+
 	return classes_tuple;
 }
 
@@ -587,6 +578,7 @@ static PyObject* extractSampledPatches(PyObject *self, PyObject *args)
     }
     
     unsigned int sample_size = sampled_indices->dimensions[0];
+    printf("Extracting %i samples [%i,%i,%i]...\n", sample_size, n_channels, height, width);
     double * samples = extractSampledPatches_impl((double*)source->data, (unsigned int *)sampled_indices->data, sample_size, height, width, n_channels, patch_size);
     npy_intp samples_shape[] = { sample_size, n_channels, patch_size, patch_size };
     
@@ -596,7 +588,56 @@ static PyObject* extractSampledPatches(PyObject *self, PyObject *args)
     
     free(samples);
     
+    printf("Sampled patches extracted successfully...\n");
+
     return (PyObject *)patch_samples;
+}
+
+
+static PyObject* defineClasses(PyObject *self, PyObject *args)
+{
+    PyArrayObject *source;
+	unsigned char patch_extraction_mode;
+    unsigned int height, width, n_channels;
+    unsigned int patch_size;
+    
+    if (!PyArg_ParseTuple(args, "O!Ib", &PyArray_Type, &source, &patch_size, &patch_extraction_mode))
+    {
+        printf("Incomplete arguments\n");
+        return NULL;
+    }
+    
+    if (source->nd > 2)
+    {
+        n_channels = (unsigned int)source->dimensions[0];
+        height = (unsigned int)source->dimensions[1];
+        width = (unsigned int)source->dimensions[2];
+    }
+    else
+    {
+        n_channels = 1;
+        height = (unsigned int)source->dimensions[0];
+        width = (unsigned int)source->dimensions[1];
+    }
+
+	double * background_mask = defineBackground((double*)(source->data), NULL, height, width, patch_size);
+	double * foreground_mask = defineForeground((double*)(source->data), patch_extraction_mode, NULL, height, width, patch_size);
+    
+    npy_intp samples_shape[] = { height, width };
+	PyArrayObject* background_mask_arr = (PyArrayObject*)PyArray_SimpleNew(2, &samples_shape[0], NPY_DOUBLE);
+	PyArrayObject* foreground_mask_arr = (PyArrayObject*)PyArray_SimpleNew(2, &samples_shape[0], NPY_DOUBLE);
+	
+    memcpy((double*)(background_mask_arr->data), background_mask, height*width*sizeof(double));
+	memcpy((double*)(foreground_mask_arr->data), foreground_mask, height*width*sizeof(double));
+	
+    free(background_mask);
+	free(foreground_mask);
+
+	PyObject *classes_tuple = PyTuple_New(2);
+	PyTuple_SetItem(classes_tuple, 0, (PyObject*)background_mask_arr);
+	PyTuple_SetItem(classes_tuple, 1, (PyObject*)foreground_mask_arr);
+
+	return classes_tuple;
 }
 
 
@@ -604,6 +645,7 @@ static PyMethodDef patchextraction_methods[] = {
 	{ "computeClasses", computeClasses, METH_VARARGS, "Compute classes from all possible patches." },
 	{ "computeSampledClasses", computeSampledClasses, METH_VARARGS, "Compute classes from a balanced sample of all possible positions." },
     { "extractSampledPatches", extractSampledPatches, METH_VARARGS, "Extract sampled positions." },
+    { "defineClasses", defineClasses, METH_VARARGS, "Define classes areas." },
     { "extractPatches", extractPatches, METH_VARARGS, "Extract all positions." },
 	{ NULL, NULL, 0, NULL }
 };
