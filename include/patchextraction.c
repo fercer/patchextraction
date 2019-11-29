@@ -293,24 +293,20 @@ double * defineBackground(double * class_labels, unsigned int * background_count
     fillValidPatches_Full(output_1, output_2, height, width, 3, 1.0);
     
     memset((void*)output_1, 0, height*width*sizeof(double));
+    for (unsigned int xy = 0; xy < height*width; xy++)
+    {
+        *(output_1 + xy) = 1.0 - *(output_2 + xy);
+    }  
+    markValidPatches_Full(output_1, output_2, height, width, patch_size, (double)(patch_size*patch_size));
+    free(output_1);
+
     if (background_count){
         for (unsigned int xy = 0; xy < height*width; xy++)
         {
-            *(output_1 + xy) = 1.0 - *(output_2 + xy);
-            *background_count = *background_count + (unsigned int)*(output_1 + xy);
+            *background_count = *background_count + (unsigned int)*(output_2 + xy);
         }
     }
-    else
-    {
-        for (unsigned int xy = 0; xy < height*width; xy++)
-        {
-            *(output_1 + xy) = 1.0 - *(output_2 + xy);
-        }
-    }
-    
-    markValidPatches_Center(output_1, output_2, height, width, patch_size);
 
-    free(output_1);
     return output_2;
 }
 
@@ -368,27 +364,42 @@ unsigned int * samplePatches(double * class_labels, unsigned int labels_count, u
     unsigned int * sample_list = (unsigned int *)malloc(labels_count * sizeof(unsigned int));
     
     printf("Sampling %i from %i patches.\n", sample_size, labels_count);
+    unsigned int min_index = height*width + 1;
     // The first pass indexes the positions of each class pixel
     unsigned int indexed_count = 0;
-    for (unsigned int xy = 0; (xy < height*width) && (indexed_count < labels_count); xy++)
+    unsigned int xy;
+    for (xy = 0; (xy < height*width) && (indexed_count < labels_count); xy++)
     {
         if (*(class_labels + xy) > 0.5)
         {
             *(sample_list + indexed_count++) = xy;
+            if (min_index > xy)
+            {
+                min_index = xy;
+            }
         }
     }
     
+    printf("Min index before: %i [%i]\n", min_index, xy);
+
     STAUS *rng_seed = initSeed(0);
     unsigned int j, swap_idx;
-    
+    min_index = height*width + 1;
     // Perform a random permutation of the indices, and keep only 'sample_size' indices
     for (unsigned int i = 0; i < sample_size; i++)
     {
-        j = (int)floor(HybTaus((double)i + 1.0, (double)indexed_count-1e-3, rng_seed));
+        j = (int)floor(HybTaus((double)i, (double)indexed_count-1e-3, rng_seed));
         swap_idx = *(sample_list + i);
         *(sample_list + i) = *(sample_list + j);
         *(sample_list + j) = swap_idx;
+
+        if (min_index > *(sample_list + i))
+        {
+            printf("Swapping point: %i/%i\n", j, indexed_count);
+            min_index = *(sample_list + i);
+        }
     }
+    printf("Min index after: %i\n", min_index);
     
     free(rng_seed);
     return sample_list;
@@ -522,7 +533,10 @@ static PyObject* computeSampledClasses(PyObject *self, PyObject *args)
 	unsigned int foreground_count = 0;
 	double * foreground_mask = defineForeground((double*)(class_labels->data), patch_extraction_mode, &foreground_count, height, width, patch_size);
 
+    printf("Foreground samples: %i, background samples: %i\n", foreground_count, background_count);
+
 	unsigned int sample_size = balanceSamples(&foreground_count, &background_count);
+    printf("Balanced sample size: %i\n", sample_size);
 	unsigned int * foreground_samples = samplePatches(foreground_mask, foreground_count, sample_size, height, width);
 	unsigned int * background_samples = samplePatches(background_mask, background_count, sample_size, height, width);
 
