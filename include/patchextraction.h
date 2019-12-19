@@ -75,11 +75,13 @@ double * PATCHEXTRACTION_DLL_LOCAL extractPatches_impl(double * source, unsigned
 
 double * PATCHEXTRACTION_DLL_LOCAL extractSampledPatches_impl(double * source, unsigned int * sample_list, const unsigned int sample_size, const unsigned int height, const unsigned int width, const unsigned int n_channels, const unsigned int patch_size);
 
+void PATCHEXTRACTION_DLL_LOCAL markPatches_Full(double * class_labels, double * output, const unsigned int height, const unsigned int width, const unsigned int patch_size, const double threshold_count);
+
+void PATCHEXTRACTION_DLL_LOCAL markPatches_Center(double * class_labels, double * output, const unsigned int height, const unsigned int width, const unsigned int patch_size, const double threshold_count);
+
 void PATCHEXTRACTION_DLL_LOCAL markValidPatches_Full(double * class_labels, double * output, const unsigned int height, const unsigned int width, const unsigned int patch_size, const double threshold_count);
-void PATCHEXTRACTION_DLL_LOCAL fillValidPatches_Full(double * class_labels, double * output, const unsigned int height, const unsigned int width, const unsigned int patch_size, const double threshold_count);
 
 void PATCHEXTRACTION_DLL_LOCAL markValidPatches_Center(double * class_labels, double * output, const unsigned int height, const unsigned int width, const unsigned int patch_size);
-void PATCHEXTRACTION_DLL_LOCAL fillValidPatches_Center(double * class_labels, double * output, const unsigned int height, const unsigned int width, const unsigned int patch_size);
 
 double * PATCHEXTRACTION_DLL_LOCAL defineBackground(double * class_labels, unsigned int * background_count, const unsigned int height, const unsigned int width, const unsigned int patch_size);
 
@@ -94,7 +96,6 @@ static PyObject* computeClasses(PyObject *self, PyObject *args);
 static PyObject* extractPatches(PyObject *self, PyObject *args);
 static PyObject* computeSampledClasses(PyObject *self, PyObject *args);
 static PyObject* extractSampledPatches(PyObject *self, PyObject *args);
-static PyObject* defineClasses(PyObject *self, PyObject *args);
 #endif
 
 
