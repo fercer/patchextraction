@@ -21,23 +21,24 @@ double * defineClass_Full(double * source, const unsigned int height, const unsi
     const unsigned int n_samples_per_width = (width - patch_size + patch_stride) / patch_stride;
     const unsigned int n_samples_per_height = (height - patch_size + patch_stride) / patch_stride;
     
-    const int offset = patch_size/2;
+    const int offset_lower = (patch_size > 1) ? patch_size/2 : 0;
+    const int offset_upper = (patch_size > 1) ? patch_size/2 : 1;
     double * patches_classes = (double*) malloc(n_samples_per_width*n_samples_per_height*sizeof(double));
 	memset(patches_classes, 0, n_samples_per_width*n_samples_per_height * sizeof(double));
 
     unsigned int x, y;
     for (unsigned int ys = 0; ys < n_samples_per_height; ys++)
     {
-        y = ys*patch_stride + offset;
+        y = ys*patch_stride + offset_lower;
         for (unsigned int xs = 0; xs < n_samples_per_width; xs++)
         {
-            x = xs*patch_stride + offset;
+            x = xs*patch_stride + offset_lower;
                         
 			double patch_sum = 0.0;
 
-            for (int i = -offset; (i < offset) && (patch_sum < threshold_count); i++)
+            for (int i = -offset_lower; (i < offset_upper) && (patch_sum < threshold_count); i++)
             {
-                for (int j = -offset; (j < offset) && (patch_sum < threshold_count); j++)
+                for (int j = -offset_lower; (j < offset_upper) && (patch_sum < threshold_count); j++)
                 {
                     patch_sum += *(source + (y+i)*width + x+j);
                 }
@@ -61,7 +62,8 @@ double * defineClass_Center(double * source, const unsigned int height, const un
 	const unsigned int n_samples_per_width = (width - patch_size + patch_stride) / patch_stride;
 	const unsigned int n_samples_per_height = (height - patch_size + patch_stride) / patch_stride;
 
-	const int offset = patch_size / 2;
+    const int offset_lower = (patch_size > 1) ? patch_size/2 : 0;
+    const int offset_upper = (patch_size > 1) ? patch_size/2 : 1;
 	double * patches_classes = (double*)malloc(n_samples_per_width*n_samples_per_height * sizeof(double));
 
 	for (unsigned int ys = 0; ys < n_samples_per_height; ys++)
@@ -69,7 +71,7 @@ double * defineClass_Center(double * source, const unsigned int height, const un
 		for (unsigned int xs = 0; xs < n_samples_per_width; xs++)
 		{
 
-			*(patches_classes + ys*n_samples_per_width + xs) = *(source + (ys*patch_stride + offset)*width + xs*patch_stride + offset);
+			*(patches_classes + ys*n_samples_per_width + xs) = *(source + (ys*patch_stride + offset_lower)*width + xs*patch_stride + offset_lower);
 		}
 	}
 
@@ -83,7 +85,8 @@ double * extractPatches_impl(double * source, unsigned int * samples_count, cons
 	const unsigned int n_samples_per_height = (height - patch_size + patch_stride) / patch_stride;
 	*samples_count = n_samples_per_width * n_samples_per_height;
 
-	const int offset = patch_size / 2;
+    const int offset_lower = (patch_size > 1) ? patch_size/2 : 0;
+    const int offset_upper = (patch_size > 1) ? patch_size/2 : 1;
 	double * sampled_patches = (double*)malloc(n_samples_per_width*n_samples_per_height*patch_size*patch_size*n_channels * sizeof(double));
 	for (unsigned int ys = 0; ys < n_samples_per_height; ys++)
 	{
@@ -91,12 +94,12 @@ double * extractPatches_impl(double * source, unsigned int * samples_count, cons
 		{
 			for (unsigned int z = 0; z < n_channels; z++)
 			{
-				for (int i = -offset; i < offset; i++)
+				for (int i = -offset_lower; i < offset_upper; i++)
 				{
-					for (int j = -offset; j < offset; j++)
+					for (int j = -offset_lower; j < offset_upper; j++)
 					{
-						*(sampled_patches + (ys*n_samples_per_width + xs)*n_channels*patch_size*patch_size + z*patch_size*patch_size + (i + offset)*patch_size + j+offset) =
-							*(source + z*height*width + (ys*patch_stride + offset + i)*width + xs*patch_stride + offset + j);
+						*(sampled_patches + (ys*n_samples_per_width + xs)*n_channels*patch_size*patch_size + z*patch_size*patch_size + (i + offset_lower)*patch_size + j+offset_lower) =
+							*(source + z*height*width + (ys*patch_stride + offset_lower + i)*width + xs*patch_stride + offset_lower + j);
 					}
 				}
 			}
@@ -109,7 +112,9 @@ double * extractPatches_impl(double * source, unsigned int * samples_count, cons
 
 double * extractSampledPatches_impl(double * source, unsigned int * sample_list, const unsigned int sample_size, const unsigned int height, const unsigned int width, const unsigned int n_channels, const unsigned int patch_size)
 {
-    const int offset = patch_size/2;
+    const int offset_lower = (patch_size > 1) ? patch_size/2 : 0;
+    const int offset_upper = (patch_size > 1) ? patch_size/2 : 1;
+
     double * sampled_patches = (double*) malloc(sample_size*patch_size*patch_size*n_channels*sizeof(double));
     double * sampled_patches_ptr;
     unsigned int xy, x, y;
@@ -123,11 +128,11 @@ double * extractSampledPatches_impl(double * source, unsigned int * sample_list,
         
         for (unsigned int z = 0; z < n_channels; z++)
         {
-            for (int i = -offset; i < offset; i++)
+            for (int i = -offset_lower; i < offset_upper; i++)
             {
-                for (int j = -offset; j < offset; j++)
+                for (int j = -offset_lower; j < offset_upper; j++)
                 {
-                    *(sampled_patches_ptr + z*patch_size*patch_size + (i+offset)*patch_size + j+offset) =
+                    *(sampled_patches_ptr + z*patch_size*patch_size + (i+offset_lower)*patch_size + j+offset_lower) =
                     *(source + z*width*height + (y + i)*width + x + j);
                 }
             }
@@ -142,18 +147,19 @@ double * extractSampledPatches_impl(double * source, unsigned int * sample_list,
 void markPatches_Full(double * class_labels, double * output, const unsigned int height, const unsigned int width, const unsigned int patch_size, const double threshold_count)
 {
     memset((void*)output, 0, height*width*sizeof(double));
-    const int offset = patch_size/2;
+    const int offset_lower = (patch_size > 1) ? patch_size/2 : 0;
+    const int offset_upper = (patch_size > 1) ? patch_size/2 : 1;
     int i, j;
 
     for (unsigned int y = 0; y < height; y++)
     {
-        const int i_ini = ((int)y < offset) ? -(int)y : -offset;
-        const int i_end = ((int)(height - y) < offset) ? (int)(height - y) : offset;
+        const int i_ini = ((int)y < offset_lower) ? -(int)y : -offset_lower;
+        const int i_end = ((int)(height - y) < offset_upper) ? (int)(height - y) : offset_upper;
         
         for (unsigned int x = 0; x < width; x++)
         {
-            const int j_ini = ((int)x < offset) ? -(int)x : -offset;
-            const int j_end = ((int)(width - x) < offset) ? (int)(width - x) : offset;
+            const int j_ini = ((int)x < offset_lower) ? -(int)x : -offset_lower;
+            const int j_end = ((int)(width - x) < offset_upper) ? (int)(width - x) : offset_upper;
             
             double patch_sum = 0.0;
             
@@ -187,19 +193,20 @@ void markPatches_Full(double * class_labels, double * output, const unsigned int
 void markPatches_Center(double * class_labels, double * output, const unsigned int height, const unsigned int width, const unsigned int patch_size, const double threshold_count)
 {
     memset((void*)output, 0, height*width*sizeof(double));
-    const int offset = patch_size/2;
+    const int offset_lower = (patch_size > 1) ? patch_size/2 : 0;
+    const int offset_upper = (patch_size > 1) ? patch_size/2 : 1;
     int i, j;
     
     for (unsigned int y = 0; y < height; y++)
     {
-        const int i_ini = ((int)y < offset) ? -(int)y : -offset;
-        const int i_end = ((int)(height - y) < offset) ? (int)(height - y) : offset;
+        const int i_ini = ((int)y < offset_lower) ? -(int)y : -offset_lower;
+        const int i_end = ((int)(height - y) < offset_upper) ? (int)(height - y) : offset_upper;
         
         for (unsigned int x = 0; x < width; x++)
         {
             
-            const int j_ini = ((int)x < offset) ? -(int)x : -offset;
-            const int j_end = ((int)(width - x) < offset) ? (int)(width - x) : offset;
+            const int j_ini = ((int)x < offset_lower) ? -(int)x : -offset_lower;
+            const int j_end = ((int)(width - x) < offset_upper) ? (int)(width - x) : offset_upper;
             
             double patch_sum = 0.0;
             
@@ -227,12 +234,13 @@ void markPatches_Center(double * class_labels, double * output, const unsigned i
 void markValidPatches_Full(double * class_labels, double * output, const unsigned int height, const unsigned int width, const unsigned int patch_size, const double threshold_count)
 {
     memset((void*)output, 0, height*width*sizeof(double));
-    const int offset = patch_size/2;
+    const int offset_lower = (patch_size > 1) ? patch_size/2 : 0;
+    const int offset_upper = (patch_size > 1) ? patch_size/2 : 1;
     int i, j;
     
     for (unsigned int y = 0; y < height; y++)
     {
-        if (((int)y < offset) || ((int)(height - y) < offset))
+        if (((int)y < offset_lower) || ((int)(height - y) < offset_upper))
         {
             continue;
         }
@@ -240,16 +248,16 @@ void markValidPatches_Full(double * class_labels, double * output, const unsigne
         for (unsigned int x = 0; x < width; x++)
         {
             
-            if (((int)x < offset) || ((int)(width - x) < offset))
+            if (((int)x < offset_lower) || ((int)(width - x) < offset_upper))
             {
                 continue;
             }
             
             double patch_sum = 0.0;
             
-            for (i = -offset; (i < offset) && (patch_sum < threshold_count); i++)
+            for (i = -offset_lower; (i < offset_upper) && (patch_sum < threshold_count); i++)
             {
-                for (j = -offset; (j < offset) && (patch_sum < threshold_count); j++)
+                for (j = -offset_lower; (j < offset_upper) && (patch_sum < threshold_count); j++)
                 {
                     // If the current patch contains at least one positive pixel, fill the complete output corresponding patch.
                     patch_sum += *(class_labels + (y + i)*width + x + j);
@@ -271,18 +279,19 @@ void markValidPatches_Full(double * class_labels, double * output, const unsigne
 void markValidPatches_Center(double * class_labels, double * output, const unsigned int height, const unsigned int width, const unsigned int patch_size)
 {
     memset((void*)output, 0, height*width*sizeof(double));
-    const int offset = patch_size/2;
+    const int offset_lower = (patch_size > 1) ? patch_size/2 : 0;
+    const int offset_upper = (patch_size > 1) ? patch_size/2 : 1;
     
     for (unsigned int y = 0; y < height; y++)
     {
-        if (((int)y < offset) || ((int)(height - y) < offset))
+        if (((int)y < offset_lower) || ((int)(height - y) < offset_upper))
         {
             continue;
         }
         
         for (unsigned int x = 0; x < width; x++)
         {
-            if (((int)x < offset) || ((int)(width - x) < offset))
+            if (((int)x < offset_lower) || ((int)(width - x) < offset_upper))
             {
                 continue;
             }
