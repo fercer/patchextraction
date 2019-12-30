@@ -310,28 +310,29 @@ double * defineBackground(double * class_labels, unsigned int * background_count
     double * output_1 = (double*)malloc(height*width*sizeof(double));
     double * output_2 = (double*)malloc(height*width*sizeof(double));
 
+    printf("[Output_1: %p]\n[Output_2: %p]\n", output_1, output_2);
+
     markPatches_Full(class_labels, output_1, height, width, patch_size, 1.0);
     markPatches_Full(output_1, output_2, height, width, 3, 1.0);
     
     memset((void*)output_1, 0, height*width*sizeof(double));
-    if (background_count){
-        for (unsigned int xy = 0; xy < height*width; xy++)
-        {
-            *(output_1 + xy) = 1.0 - *(output_2 + xy);
-            *background_count = *background_count + (unsigned int)*(output_1 + xy);
-        }
-    }
-    else
+    for (unsigned int xy = 0; xy < height*width; xy++)
     {
-        for (unsigned int xy = 0; xy < height*width; xy++)
-        {
-            *(output_1 + xy) = 1.0 - *(output_2 + xy);
-        }
+        *(output_1 + xy) = 1.0 - *(output_2 + xy);
     }
+    
     
     markPatches_Center(output_1, output_2, height, width, patch_size, (double)patch_size*patch_size);
     
     free(output_1);
+
+    if (background_count){
+        for (unsigned int xy = 0; xy < height*width; xy++)
+        {
+            *background_count = *background_count + (unsigned int)*(output_2 + xy);
+        }
+    }
+    
     return output_2;
 }
 
@@ -365,18 +366,16 @@ double * defineForeground(double * class_labels, const unsigned char patch_extra
 
 
 
-unsigned int balanceSamples(unsigned int * foreground_count, unsigned int * background_count)
+unsigned int balanceSamples(unsigned int foreground_count, unsigned int background_count)
 {
     unsigned int max_size;
-    if (*foreground_count > *background_count)
+    if (foreground_count > background_count)
     {
-        *foreground_count = *background_count;
-        max_size = *background_count;
+        max_size = background_count;
     }
     else
     {
-        *background_count = *foreground_count;
-        max_size = *foreground_count;
+        max_size = foreground_count;
     }
     
     return max_size;
@@ -387,17 +386,18 @@ unsigned int balanceSamples(unsigned int * foreground_count, unsigned int * back
 unsigned int * samplePatches(double * class_labels, unsigned int labels_count, unsigned int sample_size, const unsigned int height, const unsigned int width)
 {
     unsigned int * sample_list = (unsigned int *)malloc(labels_count * sizeof(unsigned int));
+    printf("[Sample list pointer: %p]\n", sample_list);
     
     // The first pass indexes the positions of each class pixel
     unsigned int indexed_count = 0;
-    for (unsigned int xy = 0; (xy < height*width) && (indexed_count < labels_count); xy++)
+    for (unsigned int xy = 0; xy < height*width; xy++)
     {
         if (*(class_labels + xy) > 0.5)
         {
             *(sample_list + indexed_count++) = xy;
         }
     }
-    
+
     STAUS *rng_seed = initSeed(0);
     unsigned int j, swap_idx;
     
@@ -409,7 +409,6 @@ unsigned int * samplePatches(double * class_labels, unsigned int labels_count, u
         *(sample_list + i) = *(sample_list + j);
         *(sample_list + j) = swap_idx;
     }
-    
     free(rng_seed);
     return sample_list;
 }
@@ -535,19 +534,18 @@ static PyObject* computeSampledClasses(PyObject *self, PyObject *args)
 		height = (unsigned int)class_labels->dimensions[0];
 		width = (unsigned int)class_labels->dimensions[1];
 	}
+	unsigned int foreground_count = 0;
+	double * foreground_mask = defineForeground((double*)(class_labels->data), patch_extraction_mode, &foreground_count, height, width, patch_size);
 
 	unsigned int background_count = 0;
 	double * background_mask = defineBackground((double*)(class_labels->data), &background_count, height, width, patch_size);
 
-	unsigned int foreground_count = 0;
-	double * foreground_mask = defineForeground((double*)(class_labels->data), patch_extraction_mode, &foreground_count, height, width, patch_size);
-
-	unsigned int sample_size = balanceSamples(&foreground_count, &background_count);
+	unsigned int sample_size = balanceSamples(foreground_count, background_count);
 	unsigned int * foreground_samples = samplePatches(foreground_mask, foreground_count, sample_size, height, width);
 	unsigned int * background_samples = samplePatches(background_mask, background_count, sample_size, height, width);
 
-	free(background_mask);
 	free(foreground_mask);
+	free(background_mask);
 
 	npy_intp samples_shape[] = { sample_size };
 	unsigned int samples_dimension = 1;

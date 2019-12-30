@@ -87,7 +87,7 @@ double * PATCHEXTRACTION_DLL_LOCAL defineBackground(double * class_labels, unsig
 
 double * PATCHEXTRACTION_DLL_LOCAL defineForeground(double * class_labels, const unsigned char patch_extraction_mode, unsigned int * foreground_count, const unsigned int height, const unsigned int width, const unsigned int patch_size);
 
-unsigned int PATCHEXTRACTION_DLL_LOCAL balanceSamples(unsigned int * foreground_count, unsigned int * background_count);
+unsigned int PATCHEXTRACTION_DLL_LOCAL balanceSamples(unsigned int foreground_count, unsigned int background_count);
 
 unsigned int * PATCHEXTRACTION_DLL_LOCAL samplePatches(double * class_labels, unsigned int labels_count, unsigned int sample_size, const unsigned int height, const unsigned int width);
 
