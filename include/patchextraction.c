@@ -456,6 +456,7 @@ static PyObject* computeClasses(PyObject *self, PyObject *args)
 		patches_classes = defineClass_Center((double*)(source->data), height, width, patch_size, patch_stride);
 		break;
 	}
+
 	npy_intp samples_shape[] = { n_samples_per_height, n_samples_per_width };
 
 	PyArrayObject* patch_samples = (PyArrayObject*)PyArray_SimpleNew(2, &samples_shape[0], NPY_DOUBLE);
@@ -515,8 +516,9 @@ static PyObject* computeSampledClasses(PyObject *self, PyObject *args)
 
 	unsigned int patch_size;
 	unsigned char patch_extraction_mode;
+    unsigned char balance_saples = 1;
 
-	if (!PyArg_ParseTuple(args, "O!Ib", &PyArray_Type, &class_labels, &patch_size, &patch_extraction_mode))
+	if (!PyArg_ParseTuple(args, "O!Ib|b", &PyArray_Type, &class_labels, &patch_size, &patch_extraction_mode, &balance_saples))
 	{
 		printf("Incomplete arguments\n");
 		return NULL;
@@ -534,27 +536,37 @@ static PyObject* computeSampledClasses(PyObject *self, PyObject *args)
 		height = (unsigned int)class_labels->dimensions[0];
 		width = (unsigned int)class_labels->dimensions[1];
 	}
+
 	unsigned int foreground_count = 0;
 	double * foreground_mask = defineForeground((double*)(class_labels->data), patch_extraction_mode, &foreground_count, height, width, patch_size);
 
 	unsigned int background_count = 0;
 	double * background_mask = defineBackground((double*)(class_labels->data), &background_count, height, width, patch_size);
 
-	unsigned int sample_size = balanceSamples(foreground_count, background_count);
-	unsigned int * foreground_samples = samplePatches(foreground_mask, foreground_count, sample_size, height, width);
-	unsigned int * background_samples = samplePatches(background_mask, background_count, sample_size, height, width);
+    unsigned int fg_sample_size = foreground_count;
+    unsigned int bg_sample_size = background_count;
+
+    if (balance_saples)
+    {
+	    fg_sample_size = balanceSamples(foreground_count, background_count);
+        bg_sample_size = fg_sample_size;
+    }
+	
+    unsigned int * foreground_samples = samplePatches(foreground_mask, foreground_count, fg_sample_size, height, width);
+	unsigned int * background_samples = samplePatches(background_mask, background_count, bg_sample_size, height, width);
 
 	free(foreground_mask);
 	free(background_mask);
 
-	npy_intp samples_shape[] = { sample_size };
+	npy_intp fg_samples_shape[] = { fg_sample_size };
+	npy_intp bg_samples_shape[] = { bg_sample_size };
 	unsigned int samples_dimension = 1;
 
-	PyArrayObject* foreground_sample_indices = (PyArrayObject*)PyArray_SimpleNew(samples_dimension, &samples_shape[0], NPY_UINT);
-	PyArrayObject* background_sample_indices = (PyArrayObject*)PyArray_SimpleNew(samples_dimension, &samples_shape[0], NPY_UINT);
+	PyArrayObject* foreground_sample_indices = (PyArrayObject*)PyArray_SimpleNew(samples_dimension, &fg_samples_shape[0], NPY_UINT);
+	PyArrayObject* background_sample_indices = (PyArrayObject*)PyArray_SimpleNew(samples_dimension, &bg_samples_shape[0], NPY_UINT);
 
-	memcpy((unsigned int*)(foreground_sample_indices->data), foreground_samples, sample_size * sizeof(unsigned int));
-	memcpy((unsigned int*)(background_sample_indices->data), background_samples, sample_size * sizeof(unsigned int));
+	memcpy((unsigned int*)(foreground_sample_indices->data), foreground_samples, fg_sample_size * sizeof(unsigned int));
+	memcpy((unsigned int*)(background_sample_indices->data), background_samples, bg_sample_size * sizeof(unsigned int));
 
 	free(foreground_samples);
 	free(background_samples);
