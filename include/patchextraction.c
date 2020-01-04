@@ -116,7 +116,7 @@ double * extractSampledPatches_impl(double * source, unsigned int * sample_list,
     const int offset_upper = (patch_size > 1) ? patch_size/2 : 1;
 
     double * sampled_patches = (double*) malloc(sample_size*patch_size*patch_size*n_channels*sizeof(double));
-    double * sampled_patches_ptr;
+    double * sampled_patches_ptr = sampled_patches;
     unsigned int xy, x, y;
     for (unsigned int s = 0; s < sample_size; s++)
     {
@@ -124,8 +124,6 @@ double * extractSampledPatches_impl(double * source, unsigned int * sample_list,
         x = xy % width;
         y = xy / width;
 
-        sampled_patches_ptr = sampled_patches + s*n_channels*patch_size*patch_size;
-        
         for (unsigned int z = 0; z < n_channels; z++)
         {
             for (int i = -offset_lower; i < offset_upper; i++)
@@ -136,10 +134,10 @@ double * extractSampledPatches_impl(double * source, unsigned int * sample_list,
                     *(source + z*width*height + (y + i)*width + x + j);
                 }
             }
-                
         }
+        sampled_patches_ptr += n_channels*patch_size*patch_size;
     }
-    
+
     return sampled_patches;
 }
 
@@ -309,8 +307,6 @@ double * defineBackground(double * class_labels, unsigned int * background_count
     // Define background as all patches that dows not contain any foreground pixel
     double * output_1 = (double*)malloc(height*width*sizeof(double));
     double * output_2 = (double*)malloc(height*width*sizeof(double));
-
-    printf("[Output_1: %p]\n[Output_2: %p]\n", output_1, output_2);
 
     markPatches_Full(class_labels, output_1, height, width, patch_size, 1.0);
     markPatches_Full(output_1, output_2, height, width, 3, 1.0);
@@ -592,8 +588,16 @@ static PyObject* extractSampledPatches(PyObject *self, PyObject *args)
         return NULL;
     }
     
+    if (source->nd > 3)
+    {
+        /* Number of images is discaded */        
+        n_channels = (unsigned int)source->dimensions[1];
+        height = (unsigned int)source->dimensions[2];
+        width = (unsigned int)source->dimensions[3];
+    }
     if (source->nd > 2)
     {
+        /* Number of images is discaded */        
         n_channels = (unsigned int)source->dimensions[0];
         height = (unsigned int)source->dimensions[1];
         width = (unsigned int)source->dimensions[2];
@@ -609,13 +613,9 @@ static PyObject* extractSampledPatches(PyObject *self, PyObject *args)
     double * samples = extractSampledPatches_impl((double*)source->data, (unsigned int *)sampled_indices->data, sample_size, height, width, n_channels, patch_size);
     npy_intp samples_shape[] = { sample_size, n_channels, patch_size, patch_size };
     
-    PyArrayObject* patch_samples = (PyArrayObject*)PyArray_SimpleNew(4, &samples_shape[0], NPY_DOUBLE);
+    PyArrayObject* patch_samples = (PyArrayObject*)PyArray_SimpleNewFromData(4, samples_shape, NPY_DOUBLE, (void*)samples);
     
-    memcpy((double*)(patch_samples->data), samples, sample_size*n_channels*patch_size*patch_size*sizeof(double));
-    
-    free(samples);
-    
-    return (PyObject *)patch_samples;
+    return patch_samples;
 }
 
 
