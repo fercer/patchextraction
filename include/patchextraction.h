@@ -5,52 +5,18 @@ FERNANDO CERVANTES SANCHEZ
 
 FILE NAME : patchextraction.h
 
-PURPOSE : Declares the functions required to extract patches using c++ instead of python. 
-The pyinterface are mediators between procedures using python objects and the c implementations.
-
-FILE REFERENCES :
-Name        I / O        Description
-None----       ----------
-
-ABNORMAL TERMINATION CONDITIONS, ERROR AND WARNING MESSAGES :
-None
+PURPOSE : Declares the functions required to extract patches using c/c++ api of python.
 ************************************************************************************************************************************/
+
 #ifndef PATCHEXTRACTION_DLL_H_INCLUDED
 #define PATCHEXTRACTION_DLL_H_INCLUDED
 
-#ifdef BUILDING_PYTHON_MODULE
-    #include <Python.h>
-    #include <numpy/ndarraytypes.h>
-    #include <numpy/ufuncobject.h>
-    #include <numpy/npy_3kcompat.h>
-    #define PATCHEXTRACTION_DLL_PUBLIC
-    #define PATCHEXTRACTION_DLL_LOCAL 
-#else
-    #if defined(_WIN32) || defined(_WIN64)
-        #ifdef BUILDING_PATCHEXTRACTION_DLL
-            #ifdef __GNUC__
-                #define PATCHEXTRACTION_DLL_PUBLIC __attribute__ ((dllexport))
-            #else
-                #define PATCHEXTRACTION_DLL_PUBLIC __declspec(dllexport)
-            #endif
-        #else
-            #ifdef __GNUC__
-                #define PATCHEXTRACTION_DLL_PUBLIC __attribute__ ((dllimport))
-            #else
-                #define PATCHEXTRACTION_DLL_PUBLIC __declspec(dllimport)
-            #endif
-        #endif
-        #define PATCHEXTRACTION_DLL_LOCAL
-    #else
-        #if __GNUC__ >= 4
-            #define PATCHEXTRACTION_DLL_PUBLIC __attribute__ ((visibility ("default")))
-            #define PATCHEXTRACTION_DLL_LOCAL  __attribute__ ((visibility ("hidden")))
-        #else
-            #define PATCHEXTRACTION_DLL_PUBLIC
-            #define PATCHEXTRACTION_DLL_LOCAL
-        #endif
-    #endif
-#endif
+#include <Python.h>
+#include <numpy/ndarraytypes.h>
+#include <numpy/ufuncobject.h>
+#include <numpy/npy_3kcompat.h>
+#define PATCHEXTRACTION_DLL_PUBLIC
+#define PATCHEXTRACTION_DLL_LOCAL
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -59,44 +25,27 @@ None
 
 #include "random_numbers_generator.h"
 
-#ifndef NDEBUG
-#define DEBMSG(MESSAGE) printf(MESSAGE)
-#define DEBNUMMSG(MESSAGE, NUM) printf(MESSAGE, NUM);
-#else
-#define DEBMSG(MESSAGE) 
-#define DEBNUMMSG(MESSAGE, NUM) 
-#endif
+inline void PATCHEXTRACTION_DLL_LOCAL extract_patch(char* input, char* output, const int patch_id, const int x, const int y, const int channels, const int patch_ini, const int patch_end, npy_intp* strides_src, npy_intp* strides_dst);
 
-double * PATCHEXTRACTION_DLL_LOCAL defineClass_Full(double * source, const unsigned int height, const unsigned int width, const unsigned int patch_size, unsigned int patch_stride, const double threshold_count);
+inline unsigned int PATCHEXTRACTION_DLL_LOCAL mark_patch(char* input, const int x, const int y, const int patch_ini, const int patch_end, const char * background_label, const size_t background_label_size, npy_intp* strides_src);
 
-double * PATCHEXTRACTION_DLL_LOCAL defineClass_Center(double * source, const unsigned int height, const unsigned int width, const unsigned int patch_size, unsigned int patch_stride);
+void PATCHEXTRACTION_DLL_LOCAL mark_patches(char* input, char* output, const int height, const int width, const int patch_size, const int patch_stride, const char* background_label, const size_t background_label_size, const unsigned int threshold_count, npy_intp* strides_src);
 
-double * PATCHEXTRACTION_DLL_LOCAL extractPatches_impl(double * source, unsigned int * samples_count, const unsigned int height, const unsigned int width, const unsigned int n_channels, const unsigned int patch_size, unsigned int patch_stride);
+void PATCHEXTRACTION_DLL_LOCAL mark_patches_center(char* input, char* output, const int height, const int width, const int patch_size, const int patch_stride, const char* background_label, const size_t background_label_size, npy_intp* strides_src);
 
-double * PATCHEXTRACTION_DLL_LOCAL extractSampledPatches_impl(double * source, unsigned int * sample_list, const unsigned int sample_size, const unsigned int height, const unsigned int width, const unsigned int n_channels, const unsigned int patch_size);
+char* PATCHEXTRACTION_DLL_LOCAL define_foreground(char* input, unsigned int* foreground_count, const int height, const int width, const int patch_size, const int patch_stride, const unsigned int threshold_count, const char* background_label, const size_t background_label_size, npy_intp* strides_src, const int extract_full_patch);
 
-void PATCHEXTRACTION_DLL_LOCAL markPatches_Full(double * class_labels, double * output, const unsigned int height, const unsigned int width, const unsigned int patch_size, const double threshold_count);
+void PATCHEXTRACTION_DLL_LOCAL sample_patches(char* input, unsigned int* sample_indices, unsigned int labels_count, unsigned int sample_size, const int marked_height, const int marked_width);
 
-void PATCHEXTRACTION_DLL_LOCAL markPatches_Center(double * class_labels, double * output, const unsigned int height, const unsigned int width, const unsigned int patch_size, const double threshold_count);
+unsigned int* PATCHEXTRACTION_DLL_PUBLIC compute_patches(char* input, const int height, const int width, const int patch_size, const int patch_stride, const unsigned int threshold_count, const char* background_label, const size_t background_label_size, const double sample_percentage, unsigned int* sample_size, npy_intp* strides_src, const int extract_full_patch);
 
-void PATCHEXTRACTION_DLL_LOCAL markValidPatches_Full(double * class_labels, double * output, const unsigned int height, const unsigned int width, const unsigned int patch_size, const double threshold_count);
+void PATCHEXTRACTION_DLL_PUBLIC extract_sampled_patches(char* input, char* output, unsigned int* sampled_indices, unsigned int sample_size, const int channels, const int height, const int width, const int patch_size, const int patch_stride, int extract_full_patch, npy_intp* strides_src, npy_intp* strides_dst);
 
-void PATCHEXTRACTION_DLL_LOCAL markValidPatches_Center(double * class_labels, double * output, const unsigned int height, const unsigned int width, const unsigned int patch_size);
+void PATCHEXTRACTION_DLL_PUBLIC merge_patches(char* input, char* output, unsigned int n_patches, const int channels, const int height, const int width, const int patch_size, npy_intp* strides_src, npy_intp* strides_dst);
 
-double * PATCHEXTRACTION_DLL_LOCAL defineBackground(double * class_labels, unsigned int * background_count, const unsigned int height, const unsigned int width, const unsigned int patch_size);
 
-double * PATCHEXTRACTION_DLL_LOCAL defineForeground(double * class_labels, const unsigned char patch_extraction_mode, unsigned int * foreground_count, const unsigned int height, const unsigned int width, const unsigned int patch_size);
-
-unsigned int PATCHEXTRACTION_DLL_LOCAL balanceSamples(unsigned int foreground_count, unsigned int background_count);
-
-unsigned int * PATCHEXTRACTION_DLL_LOCAL samplePatches(double * class_labels, unsigned int labels_count, unsigned int sample_size, const unsigned int height, const unsigned int width);
-
-#ifdef BUILDING_PYTHON_MODULE
-static PyObject* computeClasses(PyObject *self, PyObject *args);
-static PyObject* extractPatches(PyObject *self, PyObject *args);
-static PyObject* computeSampledClasses(PyObject *self, PyObject *args);
-static PyObject* extractSampledPatches(PyObject *self, PyObject *args);
-#endif
-
+static PyObject* compute_classes_api(PyObject* self, PyObject* args, PyObject* kw);
+static PyObject* extract_patches_api(PyObject* self, PyObject* args, PyObject* kw);
+static PyObject* merge_patches_api(PyObject* self, PyObject* args);
 
 #endif //PATCHEXTRACTION_DLL_H_INCLUDED

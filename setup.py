@@ -10,7 +10,7 @@ setup(name='patchextraction',
       author_email='iie.fercer@gmail.com',
       
       ext_modules=[Extension('patchextraction', ['include/patchextraction.c', 'include/random_numbers_generator.c'],
-                             define_macros=[('BUILDING_PYTHON_MODULE',''), ('NDEBUG',)],
+                             define_macros=[('NDEBUG',)],
                              include_dirs=[np.get_include()],
                              )],
       )
